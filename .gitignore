@@ -12,7 +12,3 @@ __pycache__/
 !backend/.env.example
 *.pyc
 .DS_Store
-
-DESIGN.md
-PROJECT_PLAN.md
-docs/

@@ -1,16 +1,18 @@
 import { Route, Routes } from "react-router-dom";
+import { BenefitsPage } from "@/pages/benefits-page";
+import { HomePage } from "@/pages/home-page";
+import { IntakePage } from "@/pages/intake-page";
+import { PlanPage } from "@/pages/plan-page";
+import { ProfilePage } from "@/pages/profile-page";
 
 export function AppRoutes() {
   return (
     <Routes>
-      <Route
-        path="/"
-        element={
-          <p className="border-t border-border pt-5 text-sm text-muted-foreground">
-            Phase 1 will add guided intake, benefits, plan, and profile routes.
-          </p>
-        }
-      />
+      <Route path="/" element={<HomePage />} />
+      <Route path="/intake" element={<IntakePage />} />
+      <Route path="/benefits" element={<BenefitsPage />} />
+      <Route path="/plan" element={<PlanPage />} />
+      <Route path="/profile" element={<ProfilePage />} />
     </Routes>
   );
 }

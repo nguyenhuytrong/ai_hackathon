@@ -1,0 +1,91 @@
+.landing {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  background: linear-gradient(160deg, #EBF5F5 0%, #F7FAFA 60%);
+}
+
+/* Header */
+.landing-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 40px;
+  border-bottom: 1px solid #D9EDED;
+  background: rgba(255,255,255,.7);
+  backdrop-filter: blur(8px);
+}
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-mark {
+  width: 36px; height: 36px; border-radius: 9px;
+  background: var(--teal); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; letter-spacing: .5px;
+}
+.logo-text { font-weight: 700; font-size: 17px; color: var(--ink); }
+.module-tag {
+  font-size: 12px; font-weight: 600; letter-spacing: .6px;
+  color: var(--teal); background: var(--teal-dim);
+  padding: 4px 12px; border-radius: 999px;
+  text-transform: uppercase;
+}
+
+/* Main */
+.landing-main {
+  flex: 1; display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center; gap: 48px;
+  max-width: 1100px; margin: 0 auto;
+  padding: 64px 40px;
+}
+@media (max-width: 768px) {
+  .landing-main { grid-template-columns: 1fr; padding: 40px 24px; }
+}
+
+.hero { display: flex; flex-direction: column; gap: 20px; }
+.eyebrow {
+  font-size: 12px; font-weight: 700; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--teal);
+}
+.hero-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: clamp(36px, 5vw, 52px);
+  line-height: 1.1; color: var(--ink);
+  font-weight: 400;
+}
+.hero-sub {
+  font-size: 17px; line-height: 1.65;
+  color: var(--ink-60); max-width: 420px;
+}
+.btn-lg { padding: 16px 32px; font-size: 16px; width: fit-content; }
+.disclaimer {
+  font-size: 12px; color: var(--ink-30);
+  border-left: 2px solid var(--ink-30); padding-left: 10px;
+  max-width: 360px; line-height: 1.5;
+}
+
+/* Task preview */
+.task-preview {
+  display: flex; flex-direction: column; gap: 14px;
+}
+.task-chip {
+  display: flex; align-items: center; gap: 16px;
+  background: var(--white);
+  border: 1px solid #D9EDED;
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  transition: box-shadow .18s;
+  position: relative;
+}
+.task-chip:hover { box-shadow: var(--shadow); }
+.task-chip-icon { font-size: 26px; flex-shrink: 0; }
+.task-chip-label { font-weight: 600; font-size: 15px; }
+.task-chip-desc  { font-size: 13px; color: var(--ink-60); margin-top: 2px; }
+.task-chip-num {
+  margin-left: auto; font-size: 13px; font-weight: 700;
+  color: var(--ink-30); flex-shrink: 0;
+}
+
+/* Footer */
+.landing-footer {
+  text-align: center; padding: 20px;
+  font-size: 12px; color: var(--ink-30);
+  border-top: 1px solid #D9EDED;
+}

@@ -1,0 +1,41 @@
+.assessment-page {
+  min-height: 100vh; display: flex; flex-direction: column;
+  background: var(--surface);
+}
+.assessment-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 32px;
+  background: white; border-bottom: 1px solid #D9EDED;
+}
+.assessment-title {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 15px; font-weight: 500; color: var(--ink-60);
+}
+.header-sep { color: var(--ink-30); }
+
+.assessment-main {
+  flex: 1; display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 24px; padding: 24px 32px;
+  max-width: 1100px; margin: 0 auto; width: 100%;
+}
+@media (max-width: 900px) {
+  .assessment-main { grid-template-columns: 1fr; }
+}
+
+.camera-container { width: 100%; }
+
+.assessment-sidebar { display: flex; flex-direction: column; gap: 14px; }
+.sidebar-card h3   { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+.instruction-list  { padding-left: 18px; display: flex; flex-direction: column; gap: 8px; }
+.instruction-list li { font-size: 13px; line-height: 1.55; color: var(--ink-60); }
+.instruction-list strong { color: var(--ink); }
+
+.warning-card {
+  background: #FFF8E7; border: 1px solid #F0C050;
+  font-size: 13px; color: #7A5A00; line-height: 1.5;
+}
+.info-card {
+  background: var(--teal-dim); border: 1px solid #A8D8D8;
+  font-size: 12px; color: var(--teal); line-height: 1.55;
+}

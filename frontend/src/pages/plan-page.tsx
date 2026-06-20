@@ -1,14 +1,33 @@
-import { useEffect } from "react";
-import { ClipboardCheck, MessageSquareText } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { ArrowRight, ClipboardCheck, MessageSquareText } from "lucide-react";
+import { Link } from "react-router-dom";
 import { ActionLink } from "@/components/action-link";
 import { EmptyState, ErrorState, LoadingState } from "@/components/route-states";
 import { useCareBridge } from "@/state/carebridge-context";
+import type { QuestionGroups, RecommendationActionPlanItem, SupportRecommendation } from "@/types/carebridge";
 
 const labelByTimeframe = {
   today: "Today",
   this_week: "This Week",
   next_appointment: "At Next Appointment",
 };
+
+const planLanes: Array<{ id: RecommendationActionPlanItem["timeframe"]; label: string }> = [
+  { id: "today", label: "Today" },
+  { id: "this_week", label: "This Week" },
+  { id: "next_appointment", label: "At Next Appointment" },
+];
+
+const questionLabels: Record<keyof QuestionGroups, string> = {
+  doctor: "Ask the doctor",
+  therapist: "Ask the therapist",
+  socialWorker: "Ask the social worker",
+  insuranceProvider: "Ask the insurance provider",
+};
+
+function normalizeStep(value: string) {
+  return value.trim().toLowerCase();
+}
 
 export function PlanPage() {
   const {
@@ -19,6 +38,16 @@ export function PlanPage() {
     recommendationRun,
     sessionId,
   } = useCareBridge();
+
+  const recommendationByNextStep = useMemo(() => {
+    const matches = new Map<string, SupportRecommendation>();
+    recommendationRun?.recommendations.forEach((recommendation) => {
+      recommendation.nextSteps.forEach((step) => {
+        matches.set(normalizeStep(step), recommendation);
+      });
+    });
+    return matches;
+  }, [recommendationRun?.recommendations]);
 
   useEffect(() => {
     if (profile && sessionId && !recommendationRun && !isLoadingRecommendations && !recommendationError) {
@@ -72,28 +101,31 @@ export function PlanPage() {
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-3">
-        {recommendationRun?.actionPlan.map((item) => (
-          <article key={item.title} className="rounded-lg border border-border bg-white p-5 shadow-soft">
-            <p className="text-sm font-semibold text-primary">{labelByTimeframe[item.timeframe]}</p>
-            <h2 className="mt-2 text-xl font-semibold tracking-normal">{item.title}</h2>
-            <p className="mt-4 flex items-center gap-2 text-sm font-semibold">
-              <ClipboardCheck aria-hidden="true" className="size-4 text-primary" />
-              Priority {item.priority}
-            </p>
-            <ul className="mt-4 space-y-3">
-              {item.checklist.map((task) => (
-                <li key={task} className="flex gap-3 text-sm leading-6">
-                  <input
-                    aria-label={task}
-                    type="checkbox"
-                    className="mt-1 size-4 rounded border-border text-primary focus:ring-primary"
-                  />
-                  <span>{task}</span>
-                </li>
-              ))}
-            </ul>
-          </article>
-        ))}
+        {planLanes.map((lane) => {
+          const laneItems = recommendationRun?.actionPlan.filter((item) => item.timeframe === lane.id) ?? [];
+
+          return (
+            <section key={lane.id} className="rounded-lg border border-border bg-white p-5 shadow-soft">
+              <h2 className="text-xl font-semibold tracking-normal">{lane.label}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{laneIntroCopy[lane.id]}</p>
+              <div className="mt-5 space-y-4">
+                {laneItems.length > 0 ? (
+                  laneItems.map((item) => (
+                    <ActionPlanCard
+                      key={item.title}
+                      item={item}
+                      matchedRecommendation={recommendationByNextStep.get(normalizeStep(item.title))}
+                    />
+                  ))
+                ) : (
+                  <p className="rounded-md border border-dashed border-border bg-muted/40 p-3 text-sm leading-6 text-muted-foreground">
+                    No action items in this lane yet.
+                  </p>
+                )}
+              </div>
+            </section>
+          );
+        })}
       </div>
 
       <section className="rounded-lg border border-border bg-white p-6 shadow-soft">
@@ -104,9 +136,7 @@ export function PlanPage() {
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           {Object.entries(recommendationRun?.questionsToAsk ?? {}).map(([group, questions]) => (
             <article key={group} className="rounded-md border border-border bg-muted/40 p-4">
-              <h3 className="font-semibold capitalize">
-                Ask the {group.replace(/([A-Z])/g, " $1").toLowerCase()}
-              </h3>
+              <h3 className="font-semibold">{questionLabels[group as keyof QuestionGroups]}</h3>
               <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
                 {questions.map((question) => (
                   <li key={question}>{question}</li>
@@ -117,5 +147,51 @@ export function PlanPage() {
         </div>
       </section>
     </section>
+  );
+}
+
+const laneIntroCopy: Record<RecommendationActionPlanItem["timeframe"], string> = {
+  today: "Calls and documents to start now.",
+  this_week: "Follow-ups to organize before schedules get busy.",
+  next_appointment: "Questions to bring into the next care conversation.",
+};
+
+function ActionPlanCard({
+  item,
+  matchedRecommendation,
+}: {
+  item: RecommendationActionPlanItem;
+  matchedRecommendation?: SupportRecommendation;
+}) {
+  return (
+    <article className="rounded-md border border-border bg-muted/30 p-4">
+      <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-primary">
+        <ClipboardCheck aria-hidden="true" className="size-4" />
+        Priority {item.priority} | {labelByTimeframe[item.timeframe]}
+      </p>
+      <h3 className="mt-3 text-base font-semibold leading-6">{item.title}</h3>
+      {matchedRecommendation ? (
+        <Link
+          to={`/resources/${matchedRecommendation.id}`}
+          state={{ recommendation: matchedRecommendation }}
+          className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-primary underline-offset-4 hover:underline focus:outline-none focus:ring-4 focus:ring-primary/25"
+        >
+          View resource details
+          <ArrowRight aria-hidden="true" className="size-4" />
+        </Link>
+      ) : null}
+      <ul className="mt-4 space-y-3">
+        {item.checklist.map((task) => (
+          <li key={task} className="flex gap-3 text-sm leading-6">
+            <input
+              aria-label={task}
+              type="checkbox"
+              className="mt-1 size-4 rounded border-border text-primary focus:ring-primary"
+            />
+            <span>{task}</span>
+          </li>
+        ))}
+      </ul>
+    </article>
   );
 }

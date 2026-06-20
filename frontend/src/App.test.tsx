@@ -36,8 +36,17 @@ const recommendationRun = {
       whyThisMayFit: ["Transportation is a barrier to follow-up care."],
       documentsToPrepare: ["Insurance card", "Appointment date"],
       nextSteps: ["Ask the insurance provider or social worker about available transportation support."],
-      sources: [],
-      evidenceStatus: "insufficient",
+      sources: [
+        {
+          sourceId: "src_transport_guide",
+          title: "Transportation Assistance Guide",
+          sourceType: "webpage",
+          url: "https://www.medicaid.gov/medicaid/benefits/non-emergency-medical-transportation/index.html",
+          page: null,
+          excerpt: "Transportation support may be available for covered medical appointments.",
+        },
+      ],
+      evidenceStatus: "partial",
     },
   ],
   actionPlan: [
@@ -47,6 +56,18 @@ const recommendationRun = {
       timeframe: "today",
       checklist: ["Insurance card", "Appointment date", "Write down questions before calling."],
     },
+    {
+      priority: 2,
+      title: "Gather documents for transportation support.",
+      timeframe: "this_week",
+      checklist: ["Discharge paperwork", "Care recipient ID"],
+    },
+    {
+      priority: 3,
+      title: "Ask which transportation support works with therapy visits.",
+      timeframe: "next_appointment",
+      checklist: ["Bring appointment schedule", "Ask about ride timing"],
+    },
   ],
   questionsToAsk: {
     doctor: ["What support should we prioritize after discharge?"],
@@ -55,6 +76,79 @@ const recommendationRun = {
     insuranceProvider: ["Does this plan cover transportation or home-based support discussions?"],
   },
   disclaimer: "CareBridge does not determine final eligibility, provide medical advice, or replace healthcare professionals.",
+};
+
+const ragSearchResponse = {
+  query: "transportation help for therapy appointments",
+  results: [
+    {
+      chunkId: "chunk_src_transport_guide_1",
+      score: 0.87,
+      text: "Transportation support may be available for covered medical appointments.",
+      source: {
+        sourceId: "src_transport_guide",
+        title: "Transportation Assistance Guide",
+        url: "https://www.medicaid.gov/medicaid/benefits/non-emergency-medical-transportation/index.html",
+        page: null,
+        authorityLevel: "official_government",
+      },
+      metadata: {
+        category: "transportation",
+        state: "OH",
+        county: "Montgomery",
+      },
+    },
+  ],
+};
+
+const sourceDocument = {
+  sourceId: "src_transport_guide",
+  title: "Transportation Assistance Guide",
+  url: "https://www.medicaid.gov/medicaid/benefits/non-emergency-medical-transportation/index.html",
+  sourceType: "webpage",
+  publisher: "Medicaid.gov",
+  authorityLevel: "official_government",
+  state: "OH",
+  county: "Montgomery",
+  category: "transportation",
+  uploadedAt: "2026-06-19T10:00:00Z",
+  verifiedAt: "2026-06-19T10:00:00Z",
+  contentHash: "hash_123",
+  chunks: [
+    {
+      chunkId: "chunk_src_transport_guide_1",
+      sourceId: "src_transport_guide",
+      resourceId: "transportation_assistance",
+      text: "Transportation support may be available for covered medical appointments.",
+      page: null,
+      sectionTitle: "Transportation for covered medical care",
+      metadata: { category: "transportation" },
+    },
+  ],
+};
+
+const resourceDetail = {
+  id: "transportation_assistance",
+  name: "Transportation Assistance",
+  category: "transportation",
+  description: "Support pathway for getting to follow-up visits and therapy appointments.",
+  location: "Montgomery County, OH",
+  sourceType: "local_program",
+  officialUrl: null,
+  eligibilityFactors: ["Transportation difficulty", "Medical appointment need"],
+  documentsToPrepare: ["Insurance card", "Appointment date"],
+  steps: ["Ask the insurance provider or social worker about available transportation support."],
+  sources: [
+    {
+      sourceId: "src_transport_guide",
+      title: "Transportation Assistance Guide",
+      url: "https://www.medicaid.gov/medicaid/benefits/non-emergency-medical-transportation/index.html",
+      sourceType: "webpage",
+      page: null,
+      authorityLevel: "official_government",
+      excerpt: "Transportation support may be available for covered medical appointments.",
+    },
+  ],
 };
 
 function apiResponse(data: unknown, ok = true) {
@@ -101,7 +195,8 @@ describe("CareBridge Phase 1 product flow", () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockImplementationOnce(() => apiResponse(demoSession))
-      .mockImplementationOnce(() => apiResponse(recommendationRun));
+      .mockImplementationOnce(() => apiResponse(recommendationRun))
+      .mockImplementationOnce(() => apiResponse(ragSearchResponse));
     renderApp();
 
     fireEvent.click(screen.getByRole("button", { name: /Load Demo Persona/i }));
@@ -119,8 +214,26 @@ describe("CareBridge Phase 1 product flow", () => {
     fireEvent.click(screen.getByRole("link", { name: /^Benefits$/i }));
     expect(await screen.findByText(/Possible Match/i)).toBeInTheDocument();
     expect(screen.getByText(/Confirm whether the insurance plan covers/i)).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenLastCalledWith(
+    expect(
+      screen.getAllByText(/Transportation support may be available for covered medical appointments/i).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /View details/i })).toHaveAttribute(
+      "href",
+      "/resources/transportation_assistance",
+    );
+    expect(screen.getByRole("link", { name: /View source/i })).toHaveAttribute(
+      "href",
+      "/sources/src_transport_guide",
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:8000/api/v1/sessions/demo_123/recommendations",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining("\"includeRagEvidence\":true"),
+      }),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8000/api/v1/rag/search",
       expect.objectContaining({ method: "POST" }),
     );
   });
@@ -200,8 +313,49 @@ describe("CareBridge Phase 1 product flow", () => {
     renderApp("/plan");
 
     expect(await screen.findByText(/Ask the insurance provider or social worker/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Today$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^This Week$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^At Next Appointment$/i })).toBeInTheDocument();
     expect(screen.getByText(/Insurance card/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /View resource details/i })).toHaveAttribute(
+      "href",
+      "/resources/transportation_assistance",
+    );
     expect(screen.getByText(/Ask the social worker/i)).toBeInTheDocument();
+  });
+
+  it("renders resource detail with recommendation context and source evidence", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockImplementationOnce(() => apiResponse(recommendationRun))
+      .mockImplementationOnce(() => apiResponse(ragSearchResponse))
+      .mockImplementationOnce(() => apiResponse(resourceDetail));
+    window.localStorage.setItem(
+      "carebridge.session",
+      JSON.stringify({ sessionId: "demo_123", profile: demoSession.profile }),
+    );
+
+    renderApp("/benefits");
+
+    fireEvent.click(await screen.findByRole("link", { name: /View details/i }));
+
+    expect(await screen.findByRole("heading", { name: /Transportation Assistance/i })).toBeInTheDocument();
+    expect(screen.getByText(/Possible Match/i)).toBeInTheDocument();
+    expect(screen.getByText(/Why this may fit/i)).toBeInTheDocument();
+    expect(screen.getByText(/Transportation difficulty/i)).toBeInTheDocument();
+    expect(screen.getByText(/Confirm whether the insurance plan covers/i)).toBeInTheDocument();
+    expect(screen.getByText(/Transportation support may be available/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open source detail/i })).toHaveAttribute(
+      "href",
+      "/sources/src_transport_guide",
+    );
+  });
+
+  it("shows an error state when resource detail loading fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => apiResponse(null, false));
+
+    renderApp("/resources/transportation_assistance");
+
+    expect(await screen.findByText(/Backend unavailable/i)).toBeInTheDocument();
   });
 
   it("shows an error state when backend recommendation generation fails", async () => {
@@ -212,6 +366,41 @@ describe("CareBridge Phase 1 product flow", () => {
     );
 
     renderApp("/benefits");
+
+    expect(await screen.findByText(/Backend unavailable/i)).toBeInTheDocument();
+  });
+
+  it("renders backend evidence search results on benefits", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockImplementationOnce(() => apiResponse(recommendationRun))
+      .mockImplementationOnce(() => apiResponse(ragSearchResponse));
+    window.localStorage.setItem(
+      "carebridge.session",
+      JSON.stringify({ sessionId: "demo_123", profile: demoSession.profile }),
+    );
+
+    renderApp("/benefits");
+
+    expect(await screen.findByRole("heading", { name: /Evidence Search/i })).toBeInTheDocument();
+    expect(await screen.findByText(/Score 0.87/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Transportation Assistance Guide/i).length).toBeGreaterThan(0);
+  });
+
+  it("renders source viewer details from backend source API", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => apiResponse(sourceDocument));
+
+    renderApp("/sources/src_transport_guide");
+
+    expect(await screen.findByRole("heading", { name: /Transportation Assistance Guide/i })).toBeInTheDocument();
+    expect(screen.getByText(/Medicaid.gov/i)).toBeInTheDocument();
+    expect(screen.getByText(/Transportation for covered medical care/i)).toBeInTheDocument();
+    expect(screen.getByText(/Transportation support may be available/i)).toBeInTheDocument();
+  });
+
+  it("shows an error state when source viewer loading fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => apiResponse(null, false));
+
+    renderApp("/sources/src_transport_guide");
 
     expect(await screen.findByText(/Backend unavailable/i)).toBeInTheDocument();
   });

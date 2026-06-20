@@ -1,14 +1,15 @@
 from fastapi import HTTPException, status
 
-from app.db.models import Resource
-from app.db.repositories import ResourceRepository
-from app.schemas.resource import ResourceDetail, ResourceSummary
+from app.db.models import DocumentChunk, Resource, SourceDocument
+from app.db.repositories import ResourceRepository, SourceRepository
+from app.schemas.resource import ResourceDetail, ResourceSourceCitation, ResourceSummary
 from app.seed.resources import seed_resources
 
 
 class ResourceService:
-    def __init__(self, repository: ResourceRepository):
+    def __init__(self, repository: ResourceRepository, source_repository: SourceRepository | None = None):
         self.repository = repository
+        self.source_repository = source_repository
         seed_resources(repository)
 
     def list_resources(
@@ -40,13 +41,41 @@ class ResourceService:
             officialUrl=resource.official_url,
         )
 
-    @classmethod
-    def _to_detail(cls, resource: Resource) -> ResourceDetail:
+    def _to_detail(self, resource: Resource) -> ResourceDetail:
         details = resource.details_json
         return ResourceDetail(
-            **cls._to_summary(resource).model_dump(),
+            **self._to_summary(resource).model_dump(),
             eligibilityFactors=details.get("eligibilityFactors", []),
             documentsToPrepare=details.get("documentsToPrepare", []),
             steps=details.get("steps", []),
-            sources=[],
+            sources=self._linked_sources(resource.id),
+        )
+
+    def _linked_sources(self, resource_id: str) -> list[ResourceSourceCitation]:
+        if self.source_repository is None:
+            return []
+
+        citations: list[ResourceSourceCitation] = []
+        seen_source_ids: set[str] = set()
+        chunks = self.source_repository.list_chunks(resource_id=resource_id)
+        for chunk in chunks:
+            if chunk.source_document_id in seen_source_ids:
+                continue
+            source = self.source_repository.get_source(chunk.source_document_id)
+            if source is None:
+                continue
+            citations.append(self._to_source_citation(source, chunk))
+            seen_source_ids.add(source.id)
+        return citations
+
+    @staticmethod
+    def _to_source_citation(source: SourceDocument, chunk: DocumentChunk) -> ResourceSourceCitation:
+        return ResourceSourceCitation(
+            sourceId=source.id,
+            title=source.title,
+            url=source.source_url,
+            sourceType=source.source_type,
+            page=chunk.page_number,
+            authorityLevel=source.authority_level,
+            excerpt=chunk.chunk_text,
         )

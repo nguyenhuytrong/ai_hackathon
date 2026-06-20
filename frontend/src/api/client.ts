@@ -2,8 +2,12 @@ import type {
   ApiResponse,
   CreateSessionRequest,
   GenerateRecommendationsRequest,
+  RagSearchRequest,
+  RagSearchResponse,
   RecommendationRun,
+  ResourceDetail,
   Session,
+  SourceDocument,
   UpdateIntakeRequest,
 } from "@/types/carebridge";
 
@@ -60,10 +64,25 @@ export function updateIntakeProfile(sessionId: string, profile: UpdateIntakeRequ
 
 export function generateRecommendations(
   sessionId: string,
-  request: GenerateRecommendationsRequest = { includeRagEvidence: false, regenerate: true },
+  request: GenerateRecommendationsRequest = { includeRagEvidence: true, regenerate: true },
 ) {
   return requestApi<RecommendationRun>(`/sessions/${sessionId}/recommendations`, {
     method: "POST",
     body: JSON.stringify(request),
   });
+}
+
+export function searchEvidence(request: RagSearchRequest) {
+  return requestApi<RagSearchResponse>("/rag/search", {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
+}
+
+export function getSource(sourceId: string) {
+  return requestApi<SourceDocument>(`/sources/${sourceId}`);
+}
+
+export function getResource(resourceId: string) {
+  return requestApi<ResourceDetail>(`/resources/${resourceId}`);
 }

@@ -426,39 +426,233 @@ Deliverables:
 - Recommendation cards can display source snippets.
 - RAG pipeline is visible in the demo.
 
+Implemented scope:
+
+- Backend exposes `POST /api/v1/rag/search` with query embedding, metadata filters, Python-side scoring, and citation-ready chunk results.
+- Backend exposes `GET /api/v1/sources/{sourceId}` for source metadata and stored chunks.
+- Recommendation generation can request RAG evidence and attach retrieved source snippets with `evidenceStatus: "partial"` when chunks are found.
+- Frontend requests RAG evidence during recommendation generation, renders snippets in support cards, links to `/sources/:sourceId`, and shows a compact Evidence Search panel on Benefits.
+
 ### Phase 6 — LangGraph Recommendation Workflow
 
-Goals:
+Summary:
 
-- Build recommendation graph:
-  1. rule matching
-  2. retrieval query generation
-  3. evidence retrieval
-  4. evidence grading
-  5. recommendation generation
-  6. action plan generation
-- Return structured JSON.
+Build the first LangGraph-orchestrated recommendation workflow while preserving the Phase 5 public API and frontend response shape. The graph should combine the saved intake profile, deterministic rule matches, retrieved evidence chunks, evidence grading, and an LLM-backed structured JSON generation step with a deterministic fallback.
 
-Deliverables:
+Phase 6 should not add chatbot behavior, user-authenticated accounts, Rehab Snapshot logic, resource admin screens, new recommendation endpoints, or invented sources. The rule engine still decides candidate support pathways; the LLM only rewrites/explains and organizes results using provided profile, rule matches, and retrieved evidence.
 
-- Recommendations are generated using profile + rules + RAG evidence.
-- LLM output includes source IDs.
-- Frontend renders AI-generated recommendations.
+Key changes:
+
+- Add minimal backend AI workflow dependencies if absent:
+  - `langgraph`
+  - `langchain-core`
+  - optional provider SDK only behind settings if the chosen provider requires it.
+- Add backend settings:
+  - `LLM_PROVIDER=fake`
+  - `LLM_MODEL`
+  - `LLM_TEMPERATURE=0`
+  - optional provider API key env used only when provider is not `fake`.
+- Add an LLM adapter layer:
+  - default `fake` provider for tests and credential-free demos.
+  - optional real provider with timeout/error handling.
+  - structured response contract returning only validated JSON-compatible data.
+- Split recommendation orchestration into focused modules:
+  - keep deterministic matching reusable from the existing `RecommendationService`.
+  - add retrieval query generation from profile/rule-match/resource context.
+  - reuse Phase 5 `RagSearchService` for evidence retrieval.
+  - add evidence grading with deterministic rules: `partial` when relevant chunks exist, `insufficient` when no relevant chunks exist, and `sufficient` reserved for future stricter criteria.
+  - add LangGraph nodes for profile summary, rule matching, query generation, evidence retrieval, evidence grading, recommendation JSON generation, action plan generation, validation, and fallback.
+- Preserve existing endpoint behavior:
+  - `POST /api/v1/sessions/{sessionId}/recommendations`
+  - `GET /api/v1/sessions/{sessionId}/recommendations/latest`
+  - same `RecommendationRunResponse` shape from `API_CONTRACT.md`.
+- Save recommendation runs with a workflow trace snapshot that excludes raw chain-of-thought:
+  - graph version
+  - profile summary
+  - rule match results
+  - retrieval queries
+  - evidence chunk IDs/source IDs
+  - evidence statuses
+  - provider name/model
+  - fallback reason when used.
+- Validate every LLM-generated response with Pydantic before storing or returning.
+- If validation fails, the provider errors, or evidence is insufficient, return deterministic template recommendations using the existing safe language and retrieved citations where available.
+- Keep recommendation language safe:
+  - use `likely_match`, `possible_match`, `more_info_needed`.
+  - do not emit `not_matched` in visible cards.
+  - never say “you qualify”, “approved”, or “guaranteed”.
+  - never diagnose, recommend treatment, or recommend medication changes.
+  - never create source IDs, URLs, page numbers, phone numbers, deadlines, or program rules not present in stored evidence/resource data.
+- Keep frontend changes minimal:
+  - continue rendering the existing recommendation/action-plan/source fields.
+  - show backend fallback or evidence status if already present in the response.
+  - no chatbot-first UI or new source viewer behavior in Phase 6.
+
+Public interfaces / types:
+
+- Reuse:
+  - `GenerateRecommendationsRequest { includeRagEvidence: boolean, regenerate: boolean }`
+  - `RecommendationRunResponse`
+  - `SupportRecommendation`
+  - `SourceCitation`
+  - `QuestionGroups`
+  - `ActionPlanItem`
+- Add backend-internal schemas:
+  - `RecommendationGraphState`
+  - `ProfileSummary`
+  - `RetrievalQuery`
+  - `EvidenceBundle`
+  - `EvidenceGrade`
+  - `GeneratedRecommendationPayload`
+  - `RecommendationWorkflowTrace`
+- Add provider interfaces:
+  - `RecommendationLlmProvider.generate(payload) -> GeneratedRecommendationPayload`
+  - `FakeRecommendationLlmProvider`
+  - optional real provider implementation behind settings.
+- Do not change the stored `recommendation_runs.result_json` response shape; add trace/provider metadata only to `input_snapshot` or a backward-compatible metadata field if one already exists.
+
+Suggested file plan:
+
+- Modify `backend/requirements.txt` for LangGraph/LangChain dependencies if they are not already installed.
+- Modify `backend/app/core/config.py` for LLM provider settings.
+- Create `backend/app/ai/__init__.py`.
+- Create `backend/app/ai/llm_provider.py` for provider interfaces, fake provider, provider builder, and timeout/error handling.
+- Create `backend/app/schemas/recommendation_workflow.py` for internal graph state and generated payload schemas.
+- Create `backend/app/services/rule_matching_service.py` if needed to extract deterministic matching out of `RecommendationService` without changing behavior.
+- Create `backend/app/services/recommendation_graph.py` for LangGraph node definitions and graph compilation.
+- Modify `backend/app/services/recommendation_service.py` to call the graph when generating recommendations and to store the trace snapshot.
+- Modify `backend/app/api/v1/recommendations.py` to inject the LLM provider into the service.
+- Add tests in `backend/tests/test_recommendation_graph.py`.
+- Extend existing tests in `backend/tests/test_recommendations.py`.
+- Extend frontend tests only if new response fields are displayed.
+
+Implementation tasks:
+
+1. Lock current deterministic behavior with tests.
+   - Add or confirm tests that demo profile still returns rehab, transportation, and caregiver support recommendations.
+   - Confirm no visible card uses final-certainty language.
+   - Run: `rtk backend/.venv/bin/python -m pytest backend/tests/test_recommendations.py -q`.
+
+2. Add provider settings and fake LLM provider.
+   - Add config fields for provider/model/temperature/API key.
+   - Implement `FakeRecommendationLlmProvider` that returns deterministic, contract-shaped JSON from profile/rule/evidence input.
+   - Test provider output validates and contains no invented source IDs.
+
+3. Extract deterministic rule matching into a reusable service.
+   - Move matching logic without behavior changes.
+   - Keep existing RecommendationService tests passing before adding LangGraph orchestration.
+
+4. Add internal workflow schemas.
+   - Model graph state, retrieval queries, evidence bundles, evidence grades, generated payload, and trace metadata.
+   - Forbid unknown fields on LLM-facing generated payload schemas.
+
+5. Build LangGraph nodes.
+   - `build_profile_summary`: normalize profile and location display fields.
+   - `run_rule_matching`: call deterministic rule matcher.
+   - `generate_retrieval_queries`: build 1-2 query strings per visible match using resource category, matched factors, missing information, state, and county.
+   - `retrieve_evidence`: call `RagSearchService` with category/resource/location filters.
+   - `grade_evidence`: set `partial` when chunks exist and `insufficient` otherwise.
+   - `generate_recommendations`: call the LLM provider with profile summary, rule matches, resource details, and evidence snippets.
+   - `validate_output`: Pydantic-validate generated JSON and source citations against retrieved chunks.
+   - `fallback_response`: use deterministic templates when provider output fails validation or provider call fails.
+   - `generate_action_plan`: produce checklist and questions from validated recommendations.
+
+6. Wire graph into recommendation generation.
+   - `RecommendationService.generate()` should call the graph and save the final response exactly as `RecommendationRunResponse`.
+   - Store trace metadata without raw prompts, raw chain-of-thought, or secrets.
+   - Keep `get_latest()` compatible with previous runs.
+
+7. Add backend tests.
+   - Fake provider happy path returns validated recommendation JSON.
+   - Graph calls rule matching before retrieval.
+   - Graph uses Phase 5 source chunks as citations and preserves source IDs.
+   - Evidence grading returns `partial` when chunks exist and `insufficient` when none match.
+   - Provider validation rejects invented source IDs.
+   - Provider validation rejects forbidden certainty phrases.
+   - Provider failure falls back to deterministic recommendations and still stores a run.
+   - Missing session returns standard `404`.
+   - Existing resource, RAG, ingestion, session, health, and config tests still pass.
+
+8. Add minimal frontend regression tests only if response rendering changes.
+   - Existing Benefits and Plan pages should continue rendering the same response shape.
+   - Responsible AI copy remains visible.
+   - Forbidden certainty words do not render.
+
+Verification commands:
+
+- `rtk backend/.venv/bin/python -m pytest backend/tests -q`
+- `rtk npm --prefix frontend test -- --run`
+- `rtk npm --prefix frontend run build`
+- Optional local integration:
+  - `rtk docker compose up -d postgres`
+  - run ingestion with fake embeddings
+  - start backend
+  - call `POST /api/v1/sessions/demo`
+  - call `POST /api/v1/sessions/{sessionId}/recommendations` with `{ "includeRagEvidence": true, "regenerate": true }`
+  - confirm stored run has source citations, evidence status, disclaimer, and trace metadata.
+
+Assumptions:
+
+- Phase 5 RAG search/source viewer is already implemented and working.
+- Default local and CI behavior uses fake LLM and fake embeddings, so no external credential is required.
+- Real provider integration is optional and must be disabled unless explicitly configured.
+- The rule engine remains the authority for candidate support matches and match statuses.
+- LLM output is treated as untrusted until validated.
+- No raw chain-of-thought, secrets, invented citations, or final-certainty claims are stored or returned.
+- Frontend should require little or no change because the public recommendation response shape remains stable.
 
 ### Phase 7 — Resource Detail and Action Plan Polish
 
-Goals:
+Summary:
 
-- Build detailed resource pages.
-- Build action checklist.
-- Build questions-to-ask page.
-- Add “why recommended” explainability view.
+Build a polished resource-detail and action-plan experience on top of the existing Phase 5/6 recommendation flow. Add a normal frontend route at `/resources/:resourceId`, link recommendation cards into that page, enrich backend resource detail with stored source evidence when available, and make the Plan page feel like a practical caregiver checklist.
 
-Deliverables:
+Keep Phase 7 scoped to resource detail and plan polish. Do not add new matching rules, auth, Rehab Snapshot logic, chatbot behavior, new LLM workflows, or new dependencies.
 
-- User can inspect each recommendation.
-- User can understand why it was recommended.
-- User receives a practical next-step plan.
+Key changes:
+
+1. Backend resource detail:
+   - Keep `GET /api/v1/resources/{resourceId}` as the public endpoint.
+   - Extend `ResourceDetail.sources` from empty placeholders to citation-ready source entries derived from `document_chunks.resource_id`.
+   - Include `sourceId`, `title`, `url`, `sourceType`, `page`, `authorityLevel`, and optional `excerpt` when a linked chunk exists.
+   - Preserve standard `404` error wrapper and safe language.
+
+2. Frontend resource detail:
+   - Add `getResource(resourceId)` to the API client.
+   - Add frontend `ResourceDetail` and `ResourceSourceCitation` types.
+   - Add `/resources/:resourceId` route and `ResourceDetailPage`.
+   - Render name, match status when opened from a recommendation, why this may fit, eligibility factors, missing information, documents, next steps, questions, sources, and responsible AI disclaimer.
+   - Link recommendation cards to `/resources/{recommendation.id}` with `View details`.
+   - Keep source links pointing to `/sources/:sourceId`.
+
+3. Action plan polish:
+   - Keep action plan data from the existing recommendation response.
+   - Improve Plan page hierarchy into `Today`, `This Week`, and `At Next Appointment` lanes.
+   - Add resource-detail links from action items when the action title matches a recommendation next step.
+   - Keep checkbox UI local-only; do not persist completion state in Phase 7.
+   - Keep stakeholder question groups visible and easier to scan.
+
+4. UI and language rules:
+   - Use the current healthcare visual direction and Lucide icons.
+   - Avoid chatbot-first layout and marketing hero treatment.
+   - Do not use forbidden certainty language: “you qualify”, “approved”, or “guaranteed”.
+   - Keep Resource Detail secondary to Benefits and Plan, not a new dashboard.
+
+Test plan:
+
+- Backend resource detail includes eligibility factors, documents, steps, safe language, and source metadata/excerpt when chunks are linked by `resource_id`.
+- Backend resource detail returns `sources: []` when no chunks are linked.
+- Missing resources return the standard `404` wrapper.
+- Frontend recommendation cards render `View details` links to resource detail pages.
+- Frontend resource detail renders required sections, source excerpt, source viewer link, and error state.
+- Plan page renders grouped action lanes, local checkboxes, resource-detail links, and stakeholder questions.
+- Responsible AI copy remains visible and forbidden certainty words do not render.
+
+Verification commands:
+
+- `rtk backend/.venv/bin/python -m pytest backend/tests -q`
+- `rtk npm --prefix frontend test -- --run`
+- `rtk npm --prefix frontend run build`
 
 ### Phase 8 — Module 2 Integration
 

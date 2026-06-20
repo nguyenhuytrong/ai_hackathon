@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.db.repositories import ResourceRepository
+from app.db.repositories import ResourceRepository, SourceRepository
 from app.db.session import get_db
 from app.schemas.common import ApiSuccess
 from app.schemas.resource import ResourceDetail, ResourceSummary
@@ -11,7 +11,7 @@ router = APIRouter()
 
 
 def get_resource_service(db: Session = Depends(get_db)) -> ResourceService:
-    return ResourceService(ResourceRepository(db))
+    return ResourceService(ResourceRepository(db), SourceRepository(db))
 
 
 @router.get("", response_model=ApiSuccess[list[ResourceSummary]])

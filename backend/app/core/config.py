@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     embedding_model: str = "fake-carebridge-v1"
     embedding_dimensions: int = 64
     embedding_api_key: str | None = None
+    llm_provider: str = "fake"
+    llm_model: str = "fake-carebridge-recommendations-v1"
+    llm_temperature: float = 0
+    llm_api_key: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=(".env", "backend/.env"),

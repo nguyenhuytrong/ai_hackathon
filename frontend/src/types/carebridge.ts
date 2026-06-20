@@ -34,8 +34,19 @@ export type CreateSessionRequest = {
 export type UpdateIntakeRequest = IntakeProfile;
 
 export type GenerateRecommendationsRequest = {
-  includeRagEvidence?: false;
+  includeRagEvidence?: boolean;
   regenerate?: boolean;
+};
+
+export type EvidenceStatus = "insufficient" | "partial" | "sufficient";
+
+export type SourceCitation = {
+  sourceId: string;
+  title: string;
+  sourceType: string;
+  url?: string | null;
+  page?: number | null;
+  excerpt?: string | null;
 };
 
 export type SupportRecommendation = {
@@ -49,8 +60,32 @@ export type SupportRecommendation = {
   documentsToPrepare: string[];
   nextSteps: string[];
   sourcePlaceholder?: string;
-  sources?: unknown[];
-  evidenceStatus?: "insufficient";
+  sources?: SourceCitation[];
+  evidenceStatus?: EvidenceStatus;
+};
+
+export type ResourceSourceCitation = {
+  sourceId: string;
+  title: string;
+  url?: string | null;
+  sourceType: string;
+  page?: number | null;
+  authorityLevel: string;
+  excerpt?: string | null;
+};
+
+export type ResourceDetail = {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  location?: string | null;
+  sourceType: string;
+  officialUrl?: string | null;
+  eligibilityFactors: string[];
+  documentsToPrepare: string[];
+  steps: string[];
+  sources: ResourceSourceCitation[];
 };
 
 export type ActionPlanItem = {
@@ -82,4 +117,63 @@ export type RecommendationRun = {
   actionPlan: RecommendationActionPlanItem[];
   questionsToAsk: QuestionGroups;
   disclaimer: string;
+};
+
+export type RagSearchFilters = {
+  category?: string;
+  state?: string;
+  county?: string;
+  resourceId?: string;
+  sourceId?: string;
+};
+
+export type RagSearchRequest = {
+  query: string;
+  filters?: RagSearchFilters;
+  topK?: number;
+};
+
+export type RagSearchResult = {
+  chunkId: string;
+  score: number;
+  text: string;
+  source: {
+    sourceId: string;
+    title: string;
+    url?: string | null;
+    page?: number | null;
+    authorityLevel: string;
+  };
+  metadata: Record<string, unknown>;
+};
+
+export type RagSearchResponse = {
+  query: string;
+  results: RagSearchResult[];
+};
+
+export type DocumentChunk = {
+  chunkId: string;
+  sourceId: string;
+  resourceId?: string | null;
+  text: string;
+  page?: number | null;
+  sectionTitle?: string | null;
+  metadata: Record<string, unknown>;
+};
+
+export type SourceDocument = {
+  sourceId: string;
+  title: string;
+  url?: string | null;
+  sourceType: string;
+  publisher?: string | null;
+  authorityLevel: string;
+  state?: string | null;
+  county?: string | null;
+  category: string;
+  uploadedAt: string;
+  verifiedAt?: string | null;
+  contentHash: string;
+  chunks: DocumentChunk[];
 };

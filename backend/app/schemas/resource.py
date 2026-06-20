@@ -11,8 +11,18 @@ class ResourceSummary(BaseModel):
     officialUrl: str | None = None
 
 
+class ResourceSourceCitation(BaseModel):
+    sourceId: str
+    title: str
+    url: str | None = None
+    sourceType: str
+    page: int | None = None
+    authorityLevel: str
+    excerpt: str | None = None
+
+
 class ResourceDetail(ResourceSummary):
     eligibilityFactors: list[str]
     documentsToPrepare: list[str]
     steps: list[str]
-    sources: list[dict] = []
+    sources: list[ResourceSourceCitation] = []

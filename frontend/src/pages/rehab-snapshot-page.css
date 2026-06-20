@@ -1,0 +1,82 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap');
+
+:root {
+  --teal:       #0D7377;
+  --teal-light: #14A8AD;
+  --teal-dim:   #E6F4F4;
+  --amber:      #F0A500;
+  --red:        #D94F4F;
+  --green:      #2E9E6B;
+  --ink:        #0F1C1D;
+  --ink-60:     #5A7172;
+  --ink-30:     #B3C4C5;
+  --surface:    #F7FAFA;
+  --white:      #FFFFFF;
+  --radius:     12px;
+  --shadow:     0 2px 16px rgba(13,115,119,.10);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--surface);
+  color: var(--ink);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 24px; border-radius: var(--radius);
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  border: none; transition: all .18s ease;
+  text-decoration: none;
+}
+.btn-primary {
+  background: var(--teal); color: var(--white);
+}
+.btn-primary:hover { background: var(--teal-light); transform: translateY(-1px); box-shadow: var(--shadow); }
+.btn-outline {
+  background: transparent; color: var(--teal);
+  border: 1.5px solid var(--teal);
+}
+.btn-outline:hover { background: var(--teal-dim); }
+.btn-ghost {
+  background: transparent; color: var(--ink-60);
+  border: none; padding: 8px 16px;
+}
+.btn-ghost:hover { color: var(--ink); }
+.btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+/* ── Cards ── */
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px;
+}
+
+/* ── Badge ── */
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; letter-spacing: .4px;
+}
+.badge-amber  { background: #FFF3CD; color: #856404; }
+.badge-red    { background: #FFE5E5; color: #9B1C1C; }
+.badge-green  { background: #D1FAE5; color: #065F46; }
+.badge-teal   { background: var(--teal-dim); color: var(--teal); }
+
+/* ── Spinner ── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2.5px solid var(--ink-30);
+  border-top-color: var(--teal);
+  animation: spin .7s linear infinite;
+  display: inline-block;
+}

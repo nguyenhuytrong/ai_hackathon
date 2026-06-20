@@ -1,8 +1,8 @@
 import { useRef, useState, useCallback } from "react";
 import usePose from "../hooks/usePose";
-import SitToStand from "../tasks/SitToStand";
-import ArmRaise from "../tasks/ArmRaise";
-import StandingBalance from "../tasks/StandingBalance";
+import SitToStand from "./SitToStand";
+import ArmRaise from "./ArmRaise";
+import StandingBalance from "./StandingBalance";
 import "./CameraView.css";
 
 const TASKS = [

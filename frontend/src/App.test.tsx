@@ -145,6 +145,8 @@ describe("CareBridge Phase 1 product flow", () => {
       .mockImplementationOnce(() => apiResponse(createSession))
       .mockImplementationOnce(() => apiResponse(updatedSession));
 
+    renderApp("/rehab-snapshot");
+
     renderApp("/intake");
 
     fireEvent.click(screen.getByRole("button", { name: /Less than 7 days ago/i }));

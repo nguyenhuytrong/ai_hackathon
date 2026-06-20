@@ -223,6 +223,16 @@ describe("CareBridge Phase 1 product flow", () => {
     expect(screen.getByText(/Transportation Assistance/i)).toBeInTheDocument();
   });
 
+  it("makes the judge demo path obvious from home", () => {
+    renderApp();
+
+    expect(screen.getByRole("heading", { name: /3-minute demo path/i })).toBeInTheDocument();
+    expect(screen.getByText(/Load demo persona/i)).toBeInTheDocument();
+    expect(screen.getByText(/Review support matches with source evidence/i)).toBeInTheDocument();
+    expect(screen.getByText(/Open the action plan checklist/i)).toBeInTheDocument();
+    expect(screen.getByText(/Optionally update with Rehab Snapshot/i)).toBeInTheDocument();
+  });
+
   it("loads the demo persona from the backend and carries it into profile and benefits", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
@@ -449,6 +459,7 @@ describe("CareBridge Phase 1 product flow", () => {
     renderApp("/resources/transportation_assistance");
 
     expect(await screen.findByText(/Backend unavailable/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Back to Benefits/i })).toHaveAttribute("href", "/benefits");
   });
 
   it("shows an error state when backend recommendation generation fails", async () => {
@@ -496,6 +507,15 @@ describe("CareBridge Phase 1 product flow", () => {
     renderApp("/sources/src_transport_guide");
 
     expect(await screen.findByText(/Backend unavailable/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Back to Benefits/i })).toHaveAttribute("href", "/benefits");
+  });
+
+  it("offers demo recovery actions when the action plan has no profile", () => {
+    renderApp("/plan");
+
+    expect(screen.getByText(/Action plan needs an intake profile/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Start Intake/i })).toHaveAttribute("href", "/intake");
+    expect(screen.getByRole("button", { name: /Load Demo Persona/i })).toBeInTheDocument();
   });
 
   it("shows one intake question at a time with a not sure option", () => {
@@ -517,5 +537,7 @@ describe("CareBridge Phase 1 product flow", () => {
     expect(pageText).not.toMatch(/\beligible\b/i);
     expect(pageText).not.toMatch(/\bapproved\b/i);
     expect(pageText).not.toMatch(/\bguaranteed\b/i);
+    expect(pageText).not.toMatch(/\bdiagnosed\b/i);
+    expect(pageText).not.toMatch(/\btreatment required\b/i);
   });
 });

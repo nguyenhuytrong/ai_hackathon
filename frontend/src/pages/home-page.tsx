@@ -1,4 +1,4 @@
-import { ArrowRight, ClipboardList, PlayCircle } from "lucide-react";
+import { Activity, ArrowRight, ClipboardList, FileSearch, ListChecks, PlayCircle } from "lucide-react";
 import { ActionLink } from "@/components/action-link";
 import { CareSignalCard } from "@/components/care-signal-card";
 import { ErrorState } from "@/components/route-states";
@@ -70,6 +70,23 @@ export function HomePage() {
       </section>
 
       <aside className="space-y-4">
+        <section className="rounded-lg border border-primary/20 bg-primary/5 p-5 shadow-soft">
+          <h2 className="text-xl font-semibold tracking-normal">3-minute demo path</h2>
+          <div className="mt-4 space-y-3">
+            <DemoStep icon={PlayCircle} label="Demo persona" copy="Load the synthetic John and Mother profile." />
+            <DemoStep
+              icon={FileSearch}
+              label="Evidence"
+              copy="Review support matches with source evidence."
+            />
+            <DemoStep icon={ListChecks} label="Action plan" copy="Open the action plan checklist." />
+            <DemoStep
+              icon={Activity}
+              label="Rehab Snapshot"
+              copy="Optionally update with Rehab Snapshot."
+            />
+          </div>
+        </section>
         <section className="rounded-lg border border-border bg-white p-5 shadow-soft">
           <h2 className="text-xl font-semibold tracking-normal">Current Situation</h2>
           <dl className="mt-4 grid gap-3 text-sm">
@@ -85,6 +102,26 @@ export function HomePage() {
           ))}
         </div>
       </aside>
+    </div>
+  );
+}
+
+function DemoStep({
+  icon: Icon,
+  label,
+  copy,
+}: {
+  icon: typeof PlayCircle;
+  label: string;
+  copy: string;
+}) {
+  return (
+    <div className="flex gap-3 rounded-md border border-primary/10 bg-white px-3 py-2">
+      <Icon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-primary" />
+      <div>
+        <p className="text-sm font-semibold">{label}</p>
+        <p className="text-sm leading-6 text-muted-foreground">{copy}</p>
+      </div>
     </div>
   );
 }

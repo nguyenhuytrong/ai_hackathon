@@ -125,6 +125,15 @@ export function BenefitsPage() {
       {!isLoadingRecommendations && !recommendationError && !recommendationRun ? (
         <EmptyState title="No support matches generated yet">
           <p>CareBridge needs to generate a recommendation run for this session.</p>
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => void loadRecommendations()}
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-200 hover:bg-primary/90 focus:outline-none focus:ring-4 focus:ring-primary/25"
+            >
+              Generate Support Matches
+            </button>
+          </div>
         </EmptyState>
       ) : null}
 

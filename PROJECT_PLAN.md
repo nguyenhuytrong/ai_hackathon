@@ -731,20 +731,69 @@ Assumptions:
 
 ### Phase 9 — Demo Polish
 
-Goals:
+Summary:
 
-- Improve visual hierarchy.
-- Add loading states.
-- Add empty states.
-- Add responsible AI banner.
-- Add final demo script.
-- Prepare stable local run.
+Polish CareBridge for a reliable judge-facing demo after the Phase 8 Rehab Snapshot integration. Tighten the core flow so a judge can understand the product in seconds: demo persona, support matches, source evidence, action plan, resource detail, and optional Rehab Snapshot update.
 
-Deliverables:
+Key changes:
 
-- Judges can understand the product quickly.
-- Full demo flow works reliably.
-- Product feels polished and coherent.
+1. Frontend demo path:
+   - Improve visual hierarchy across Home, Benefits, Plan, Resource Detail, Source Viewer, and Rehab Snapshot.
+   - Make the main demo path obvious from Home: load demo persona, review support matches with source evidence, open the action plan checklist, and optionally update with Rehab Snapshot.
+   - Keep Rehab Snapshot secondary to Benefits and Plan.
+
+2. Recovery states:
+   - Add demo-focused empty, loading, and error states that always offer the next useful action.
+   - Recovery actions should route to one of: load demo persona, start intake, generate recommendations, view benefits, view plan, or use demo mobility snapshot.
+   - Keep backend/API failures visible without blocking the rest of the demo narrative.
+
+3. Demo script:
+   - Add `docs/demo-script.md` with a concise 3-5 minute walkthrough.
+   - Include local setup commands, demo persona story, fallback path, and responsible AI talking points.
+   - Use only safe language: possible match, may fit, worth discussing, more information needed.
+
+4. Scope boundaries:
+   - No new APIs.
+   - No database schema changes.
+   - No auth.
+   - No new dependencies.
+   - No new eligibility rules.
+   - No new LLM workflow.
+   - No chatbot-first UI.
+
+Demo readiness checklist:
+
+- Backend health endpoint responds.
+- Session demo endpoint creates the John/Mother demo persona.
+- Seed resources exist for rehab, home-health discussion, transportation, and caregiver support.
+- RAG ingestion has run or demo source chunks are available.
+- Recommendation generation returns support matches with safe match statuses.
+- Benefits page shows evidence snippets and source detail links.
+- Resource Detail and Source Viewer routes render successfully.
+- Plan page shows grouped action lanes and stakeholder questions.
+- Rehab Snapshot demo fallback can save a snapshot and refresh recommendations.
+- Responsible AI boundary remains visible.
+
+Test plan:
+
+- Frontend verifies the Home page communicates the demo path.
+- Frontend verifies empty and error states include recovery actions.
+- Frontend verifies demo persona, recommendations with evidence, resource detail, source viewer, Plan, and Rehab Snapshot save/refresh continue to work.
+- Responsible AI copy remains visible and forbidden language does not render: `you qualify`, `approved`, `guaranteed`, `diagnosed`, `treatment required`.
+
+Verification commands:
+
+- `rtk backend/.venv/bin/python -m pytest backend/tests -q`
+- `rtk npm --prefix frontend test -- --run`
+- `rtk npm --prefix frontend run build`
+
+Assumptions:
+
+- Phase 9 is the final polish phase for the hackathon MVP.
+- Existing Phase 1-8 behavior is preserved and only refined for clarity, stability, and demo flow.
+- Demo reliability is more important than adding new capability.
+- `ai_hackathon-module2/` remains reference-only and is not run as a second app.
+- CareBridge continues to avoid final eligibility, diagnosis, clinical severity, or medical-treatment claims.
 
 ---
 

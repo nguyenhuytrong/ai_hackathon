@@ -84,6 +84,12 @@ export function ResourceDetailPage() {
     return (
       <ErrorState title="Resource detail request failed">
         <p>{error}</p>
+        <Link
+          to="/benefits"
+          className="mt-3 inline-flex font-semibold text-red-950 underline-offset-4 hover:underline focus:outline-none focus:ring-4 focus:ring-red-300/50"
+        >
+          Back to Benefits
+        </Link>
       </ErrorState>
     );
   }
@@ -92,6 +98,14 @@ export function ResourceDetailPage() {
     return (
       <EmptyState title="Resource not found">
         <p>CareBridge could not find this support pathway.</p>
+        <div className="mt-4">
+          <Link
+            to="/benefits"
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-200 hover:bg-primary/90 focus:outline-none focus:ring-4 focus:ring-primary/25"
+          >
+            Back to Benefits
+          </Link>
+        </div>
       </EmptyState>
     );
   }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { ArrowRight, ClipboardCheck, MessageSquareText } from "lucide-react";
+import { ArrowRight, ClipboardCheck, MessageSquareText, PlayCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ActionLink } from "@/components/action-link";
 import { EmptyState, ErrorState, LoadingState } from "@/components/route-states";
@@ -31,7 +31,10 @@ function normalizeStep(value: string) {
 
 export function PlanPage() {
   const {
+    error,
     isLoadingRecommendations,
+    isSaving,
+    loadDemoProfile,
     loadRecommendations,
     profile,
     recommendationError,
@@ -66,9 +69,26 @@ export function PlanPage() {
     return (
       <EmptyState title="Action plan needs an intake profile">
         <p>Load the demo persona or complete the intake before reviewing next steps.</p>
-        <div className="mt-4">
-          <ActionLink to="/benefits">Review Benefits</ActionLink>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <ActionLink to="/intake">Start Intake</ActionLink>
+          <button
+            type="button"
+            onClick={() => void loadDemoProfile()}
+            disabled={isSaving}
+            className="inline-flex min-h-11 cursor-pointer items-center rounded-md border border-border bg-white px-4 py-2 text-sm font-semibold transition-colors duration-200 hover:border-primary/40 hover:bg-muted focus:outline-none focus:ring-4 focus:ring-primary/25"
+          >
+            <PlayCircle aria-hidden="true" className="mr-2 size-4" />
+            {isSaving ? "Loading Demo..." : "Load Demo Persona"}
+          </button>
+          <ActionLink to="/benefits" variant="secondary">Review Benefits</ActionLink>
         </div>
+        {error ? (
+          <div className="mt-4">
+            <ErrorState title="Session request failed">
+              <p>{error}</p>
+            </ErrorState>
+          </div>
+        ) : null}
       </EmptyState>
     );
   }
@@ -97,6 +117,15 @@ export function PlanPage() {
       {!isLoadingRecommendations && !recommendationError && !recommendationRun ? (
         <EmptyState title="No action plan generated yet">
           <p>CareBridge needs to generate support matches before showing a plan.</p>
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => void loadRecommendations()}
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-200 hover:bg-primary/90 focus:outline-none focus:ring-4 focus:ring-primary/25"
+            >
+              Generate Support Matches
+            </button>
+          </div>
         </EmptyState>
       ) : null}
 

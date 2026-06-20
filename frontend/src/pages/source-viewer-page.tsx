@@ -43,6 +43,12 @@ export function SourceViewerPage() {
     return (
       <ErrorState title="Source request failed">
         <p>{error}</p>
+        <Link
+          to="/benefits"
+          className="mt-3 inline-flex font-semibold text-red-950 underline-offset-4 hover:underline focus:outline-none focus:ring-4 focus:ring-red-300/50"
+        >
+          Back to Benefits
+        </Link>
       </ErrorState>
     );
   }
@@ -51,6 +57,14 @@ export function SourceViewerPage() {
     return (
       <EmptyState title="Source not found">
         <p>CareBridge could not find stored source metadata for this citation.</p>
+        <div className="mt-4">
+          <Link
+            to="/benefits"
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-200 hover:bg-primary/90 focus:outline-none focus:ring-4 focus:ring-primary/25"
+          >
+            Back to Benefits
+          </Link>
+        </div>
       </EmptyState>
     );
   }
@@ -89,6 +103,14 @@ export function SourceViewerPage() {
       {source.chunks.length === 0 ? (
         <EmptyState title="No stored chunks">
           <p>This source has metadata, but no searchable chunks are stored yet.</p>
+          <div className="mt-4">
+            <Link
+              to="/benefits"
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-200 hover:bg-primary/90 focus:outline-none focus:ring-4 focus:ring-primary/25"
+            >
+              Back to Benefits
+            </Link>
+          </div>
         </EmptyState>
       ) : (
         <section className="space-y-3">

@@ -1,11 +1,37 @@
+import { useEffect } from "react";
 import { ClipboardCheck, MessageSquareText } from "lucide-react";
 import { ActionLink } from "@/components/action-link";
-import { EmptyState } from "@/components/route-states";
-import { actionPlanItems, questionGroups } from "@/data/mock-carebridge";
+import { EmptyState, ErrorState, LoadingState } from "@/components/route-states";
 import { useCareBridge } from "@/state/carebridge-context";
 
+const labelByTimeframe = {
+  today: "Today",
+  this_week: "This Week",
+  next_appointment: "At Next Appointment",
+};
+
 export function PlanPage() {
-  const { profile } = useCareBridge();
+  const {
+    isLoadingRecommendations,
+    loadRecommendations,
+    profile,
+    recommendationError,
+    recommendationRun,
+    sessionId,
+  } = useCareBridge();
+
+  useEffect(() => {
+    if (profile && sessionId && !recommendationRun && !isLoadingRecommendations && !recommendationError) {
+      void loadRecommendations().catch(() => undefined);
+    }
+  }, [
+    isLoadingRecommendations,
+    loadRecommendations,
+    profile,
+    recommendationError,
+    recommendationRun,
+    sessionId,
+  ]);
 
   if (!profile) {
     return (
@@ -26,20 +52,33 @@ export function PlanPage() {
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-normal">Your Next Steps This Week</h1>
         <p className="mt-3 max-w-3xl leading-7 text-muted-foreground">
-          A mock checklist for organizing calls, documents, and questions before the next care team
+          A checklist for organizing calls, documents, and questions before the next care team
           conversation.
         </p>
       </div>
 
+      {isLoadingRecommendations ? <LoadingState title="Preparing action plan" /> : null}
+
+      {recommendationError ? (
+        <ErrorState title="Recommendation request failed">
+          <p>{recommendationError}</p>
+        </ErrorState>
+      ) : null}
+
+      {!isLoadingRecommendations && !recommendationError && !recommendationRun ? (
+        <EmptyState title="No action plan generated yet">
+          <p>CareBridge needs to generate support matches before showing a plan.</p>
+        </EmptyState>
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-3">
-        {actionPlanItems.map((item) => (
+        {recommendationRun?.actionPlan.map((item) => (
           <article key={item.title} className="rounded-lg border border-border bg-white p-5 shadow-soft">
-            <p className="text-sm font-semibold text-primary">{item.group}</p>
+            <p className="text-sm font-semibold text-primary">{labelByTimeframe[item.timeframe]}</p>
             <h2 className="mt-2 text-xl font-semibold tracking-normal">{item.title}</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.why}</p>
             <p className="mt-4 flex items-center gap-2 text-sm font-semibold">
               <ClipboardCheck aria-hidden="true" className="size-4 text-primary" />
-              Contact: {item.contact}
+              Priority {item.priority}
             </p>
             <ul className="mt-4 space-y-3">
               {item.checklist.map((task) => (
@@ -63,7 +102,7 @@ export function PlanPage() {
           Questions to Ask
         </h2>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
-          {Object.entries(questionGroups).map(([group, questions]) => (
+          {Object.entries(recommendationRun?.questionsToAsk ?? {}).map(([group, questions]) => (
             <article key={group} className="rounded-md border border-border bg-muted/40 p-4">
               <h3 className="font-semibold capitalize">
                 Ask the {group.replace(/([A-Z])/g, " $1").toLowerCase()}

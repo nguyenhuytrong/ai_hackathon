@@ -13,6 +13,10 @@ class Settings(BaseSettings):
         validation_alias="DATABASE_URL",
     )
     backend_cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    embedding_provider: str = "fake"
+    embedding_model: str = "fake-carebridge-v1"
+    embedding_dimensions: int = 64
+    embedding_api_key: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=(".env", "backend/.env"),

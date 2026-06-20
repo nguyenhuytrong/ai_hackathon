@@ -1,6 +1,7 @@
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { ErrorState } from "@/components/route-states";
 import { demoProfile } from "@/data/mock-carebridge";
 import { useCareBridge } from "@/state/carebridge-context";
 import type { IntakeProfile } from "@/types/carebridge";
@@ -93,13 +94,13 @@ const intakeSteps: IntakeStep[] = [
 ];
 
 export function IntakePage() {
-  const { updateProfile } = useCareBridge();
+  const { error, isSaving, saveIntakeProfile } = useCareBridge();
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState<IntakeProfile>({
     caregiverName: "John",
     careRecipient: "Mother",
     state: "OH",
-    county: "Montgomery County, OH",
+    county: "Montgomery",
     caregiverWorking: true,
   });
   const [completed, setCompleted] = useState(false);
@@ -111,13 +112,17 @@ export function IntakePage() {
     [],
   );
 
-  function selectOption(value: string | boolean) {
+  async function selectOption(value: string | boolean) {
     const nextAnswers = { ...answers, [step.key]: value };
     setAnswers(nextAnswers);
 
     if (stepIndex === intakeSteps.length - 1) {
-      updateProfile({ ...demoProfile, ...nextAnswers });
-      setCompleted(true);
+      try {
+        await saveIntakeProfile({ ...demoProfile, ...nextAnswers });
+        setCompleted(true);
+      } catch {
+        setCompleted(false);
+      }
       return;
     }
 
@@ -130,8 +135,8 @@ export function IntakePage() {
         <CheckCircle2 aria-hidden="true" className="mb-4 size-9 text-emerald-700" />
         <h1 className="text-3xl font-semibold tracking-normal">Intake profile saved for this demo</h1>
         <p className="mt-3 max-w-2xl leading-7 text-muted-foreground">
-          CareBridge has enough mock intake information to show possible support matches. This stays
-          local in the browser until the Phase 2 backend is connected.
+          CareBridge saved this intake profile to the Phase 2 session backend and can now show
+          mock support matches while recommendation logic waits for the next phase.
         </p>
         <Link
           to="/benefits"
@@ -161,19 +166,28 @@ export function IntakePage() {
         <p className="mt-3 rounded-md bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
           Why we ask: {step.why}
         </p>
+        {error ? (
+          <div className="mt-4">
+            <ErrorState title="Intake save failed">
+              <p>{error}</p>
+            </ErrorState>
+          </div>
+        ) : null}
 
         <div className="mt-6 grid gap-3">
           {step.options.map((option) => (
             <button
               key={option.label}
               type="button"
-              onClick={() => selectOption(option.value)}
+              onClick={() => void selectOption(option.value)}
+              disabled={isSaving}
               className="min-h-12 cursor-pointer rounded-md border border-border bg-white px-4 py-3 text-left font-semibold transition-colors duration-200 hover:border-primary/50 hover:bg-muted focus:outline-none focus:ring-4 focus:ring-primary/25"
             >
               {option.label}
             </button>
           ))}
         </div>
+        {isSaving ? <p className="mt-4 text-sm font-semibold text-primary">Saving intake profile...</p> : null}
       </section>
 
       <aside className="rounded-lg border border-border bg-white p-5 shadow-soft">

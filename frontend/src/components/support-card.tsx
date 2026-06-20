@@ -9,6 +9,16 @@ export function SupportCard({
   recommendation: SupportRecommendation;
   showStillMissingLabel?: boolean;
 }) {
+  const fitItems =
+    recommendation.whyThisMayFit && recommendation.whyThisMayFit.length > 0
+      ? recommendation.whyThisMayFit
+      : recommendation.matchedFactors;
+  const sourceCopy =
+    recommendation.sourcePlaceholder ??
+    (recommendation.sources && recommendation.sources.length > 0
+      ? "Source evidence is attached to this recommendation."
+      : "Source evidence will be added in a later evidence phase.");
+
   return (
     <article className="rounded-lg border border-border bg-white p-5 shadow-soft">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -22,7 +32,7 @@ export function SupportCard({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Section title="Why CareBridge recommends this" icon="check" items={recommendation.matchedFactors} />
+        <Section title="Why CareBridge recommends this" icon="check" items={fitItems} />
         <Section
           title={showStillMissingLabel ? "Still missing" : "Information to confirm"}
           icon="question"
@@ -33,7 +43,7 @@ export function SupportCard({
       </div>
 
       <p className="mt-4 rounded-md border border-dashed border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-        {recommendation.sourcePlaceholder}
+        {sourceCopy}
       </p>
     </article>
   );

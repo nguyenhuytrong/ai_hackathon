@@ -14,6 +14,30 @@ export type IntakeProfile = {
   biggestChallenge?: string;
 };
 
+export type ApiResponse<T> = {
+  success: boolean;
+  message: string;
+  data: T;
+};
+
+export type Session = {
+  sessionId: string;
+  profile: IntakeProfile;
+  createdAt: string;
+  updatedAt?: string;
+};
+
+export type CreateSessionRequest = {
+  demoMode?: boolean;
+};
+
+export type UpdateIntakeRequest = IntakeProfile;
+
+export type GenerateRecommendationsRequest = {
+  includeRagEvidence?: false;
+  regenerate?: boolean;
+};
+
 export type SupportRecommendation = {
   id: string;
   title: string;
@@ -21,9 +45,12 @@ export type SupportRecommendation = {
   matchStatus: MatchStatus;
   matchedFactors: string[];
   missingInformation: string[];
+  whyThisMayFit?: string[];
   documentsToPrepare: string[];
   nextSteps: string[];
-  sourcePlaceholder: string;
+  sourcePlaceholder?: string;
+  sources?: unknown[];
+  evidenceStatus?: "insufficient";
 };
 
 export type ActionPlanItem = {
@@ -34,9 +61,25 @@ export type ActionPlanItem = {
   contact: string;
 };
 
+export type RecommendationActionPlanItem = {
+  priority: number;
+  title: string;
+  timeframe: "today" | "this_week" | "next_appointment";
+  checklist: string[];
+};
+
 export type QuestionGroups = {
   doctor: string[];
   therapist: string[];
   socialWorker: string[];
   insuranceProvider: string[];
+};
+
+export type RecommendationRun = {
+  runId: string;
+  summary: string;
+  recommendations: SupportRecommendation[];
+  actionPlan: RecommendationActionPlanItem[];
+  questionsToAsk: QuestionGroups;
+  disclaimer: string;
 };

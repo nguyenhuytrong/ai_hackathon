@@ -1,7 +1,74 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+
+const demoSession = {
+  sessionId: "demo_123",
+  profile: {
+    caregiverName: "John",
+    careRecipient: "Mother",
+    dischargeTime: "less_than_7_days",
+    mobility: "needs_some_assistance",
+    transportation: "no_vehicle",
+    insurance: "medicaid",
+    caregiverWorking: true,
+    caregiverBurden: "elevated",
+    state: "OH",
+    county: "Montgomery",
+    biggestChallenge: "getting_to_appointments",
+  },
+  createdAt: "2026-06-19T10:00:00Z",
+  updatedAt: "2026-06-19T10:00:00Z",
+};
+
+const recommendationRun = {
+  runId: "rec_123",
+  summary: "Based on your situation, CareBridge found three support areas worth exploring.",
+  recommendations: [
+    {
+      id: "transportation_assistance",
+      title: "Transportation Assistance",
+      category: "transportation",
+      matchStatus: "possible_match",
+      matchedFactors: ["Transportation is a barrier to follow-up care."],
+      missingInformation: ["Confirm whether the insurance plan covers non-emergency medical transportation."],
+      whyThisMayFit: ["Transportation is a barrier to follow-up care."],
+      documentsToPrepare: ["Insurance card", "Appointment date"],
+      nextSteps: ["Ask the insurance provider or social worker about available transportation support."],
+      sources: [],
+      evidenceStatus: "insufficient",
+    },
+  ],
+  actionPlan: [
+    {
+      priority: 1,
+      title: "Ask the insurance provider or social worker about available transportation support.",
+      timeframe: "today",
+      checklist: ["Insurance card", "Appointment date", "Write down questions before calling."],
+    },
+  ],
+  questionsToAsk: {
+    doctor: ["What support should we prioritize after discharge?"],
+    therapist: ["Is home-based therapy worth discussing?"],
+    socialWorker: ["Are transportation or caregiver support programs available?"],
+    insuranceProvider: ["Does this plan cover transportation or home-based support discussions?"],
+  },
+  disclaimer: "CareBridge does not determine final eligibility, provide medical advice, or replace healthcare professionals.",
+};
+
+function apiResponse(data: unknown, ok = true) {
+  return Promise.resolve({
+    ok,
+    status: ok ? 200 : 500,
+    json: () =>
+      Promise.resolve(
+        ok
+          ? { success: true, message: "ok", data }
+          : { success: false, message: "Backend unavailable", status: 500, errors: {} },
+      ),
+  } as Response);
+}
 
 function renderApp(initialPath = "/") {
   return render(
@@ -14,6 +81,7 @@ function renderApp(initialPath = "/") {
 describe("CareBridge Phase 1 product flow", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    vi.restoreAllMocks();
   });
 
   it("renders product navigation and the support plan home screen", () => {
@@ -29,18 +97,123 @@ describe("CareBridge Phase 1 product flow", () => {
     expect(screen.getByText(/Transportation Assistance/i)).toBeInTheDocument();
   });
 
-  it("loads the demo persona and carries it into profile and benefits", () => {
+  it("loads the demo persona from the backend and carries it into profile and benefits", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementationOnce(() => apiResponse(demoSession))
+      .mockImplementationOnce(() => apiResponse(recommendationRun));
     renderApp();
 
     fireEvent.click(screen.getByRole("button", { name: /Load Demo Persona/i }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8000/api/v1/sessions/demo",
+      expect.objectContaining({ method: "POST" }),
+    ));
+
     fireEvent.click(screen.getByRole("link", { name: /^Profile$/i }));
+
+    expect(await screen.findByText(/John/i)).toBeInTheDocument();
+    expect(screen.getByText(/Montgomery County, OH/i)).toBeInTheDocument();
+    expect(window.localStorage.getItem("carebridge.session")).toContain("demo_123");
+
+    fireEvent.click(screen.getByRole("link", { name: /^Benefits$/i }));
+    expect(await screen.findByText(/Possible Match/i)).toBeInTheDocument();
+    expect(screen.getByText(/Confirm whether the insurance plan covers/i)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "http://localhost:8000/api/v1/sessions/demo_123/recommendations",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("saves completed intake through backend session endpoints", async () => {
+    const createSession = {
+      sessionId: "sess_123",
+      profile: {},
+      createdAt: "2026-06-19T10:00:00Z",
+      updatedAt: "2026-06-19T10:00:00Z",
+    };
+    const updatedSession = {
+      ...createSession,
+      profile: {
+        ...demoSession.profile,
+        county: "Montgomery",
+      },
+    };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementationOnce(() => apiResponse(createSession))
+      .mockImplementationOnce(() => apiResponse(updatedSession));
+
+    renderApp("/intake");
+
+    fireEvent.click(screen.getByRole("button", { name: /Less than 7 days ago/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Needs some assistance/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^No vehicle$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Medicaid$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Elevated$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Getting to appointments/i }));
+
+    expect(await screen.findByRole("heading", { name: /Intake profile saved/i })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://localhost:8000/api/v1/sessions",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "http://localhost:8000/api/v1/sessions/sess_123/intake",
+      expect.objectContaining({
+        method: "PATCH",
+        body: expect.stringContaining("\"transportation\":\"no_vehicle\""),
+      }),
+    );
+  });
+
+  it("restores the cached session profile from local storage", () => {
+    window.localStorage.setItem(
+      "carebridge.session",
+      JSON.stringify({ sessionId: "demo_cached", profile: demoSession.profile }),
+    );
+
+    renderApp("/profile");
 
     expect(screen.getByText(/John/i)).toBeInTheDocument();
     expect(screen.getByText(/Montgomery County, OH/i)).toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByRole("link", { name: /^Benefits$/i }));
-    expect(screen.getByText(/Possible Match/i)).toBeInTheDocument();
-    expect(screen.getByText(/Still missing/i)).toBeInTheDocument();
+  it("shows an error state when backend demo loading fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => apiResponse(null, false));
+    renderApp();
+
+    fireEvent.click(screen.getByRole("button", { name: /Load Demo Persona/i }));
+
+    expect(await screen.findByText(/Backend unavailable/i)).toBeInTheDocument();
+  });
+
+  it("renders the action plan from backend recommendation output", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => apiResponse(recommendationRun));
+    window.localStorage.setItem(
+      "carebridge.session",
+      JSON.stringify({ sessionId: "demo_123", profile: demoSession.profile }),
+    );
+
+    renderApp("/plan");
+
+    expect(await screen.findByText(/Ask the insurance provider or social worker/i)).toBeInTheDocument();
+    expect(screen.getByText(/Insurance card/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ask the social worker/i)).toBeInTheDocument();
+  });
+
+  it("shows an error state when backend recommendation generation fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => apiResponse(null, false));
+    window.localStorage.setItem(
+      "carebridge.session",
+      JSON.stringify({ sessionId: "demo_123", profile: demoSession.profile }),
+    );
+
+    renderApp("/benefits");
+
+    expect(await screen.findByText(/Backend unavailable/i)).toBeInTheDocument();
   });
 
   it("shows one intake question at a time with a not sure option", () => {

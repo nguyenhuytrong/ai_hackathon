@@ -10,7 +10,7 @@ export const demoProfile: IntakeProfile = {
   caregiverWorking: true,
   caregiverBurden: "elevated",
   state: "OH",
-  county: "Montgomery County, OH",
+  county: "Montgomery",
   biggestChallenge: "getting_to_appointments",
 };
 

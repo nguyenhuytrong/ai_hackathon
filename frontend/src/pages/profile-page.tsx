@@ -1,5 +1,6 @@
 import { ActionLink } from "@/components/action-link";
-import { EmptyState } from "@/components/route-states";
+import { EmptyState, ErrorState } from "@/components/route-states";
+import { formatProfileValue } from "@/lib/profile-format";
 import { useCareBridge } from "@/state/carebridge-context";
 
 const labels: Record<string, string> = {
@@ -17,7 +18,7 @@ const labels: Record<string, string> = {
 };
 
 export function ProfilePage() {
-  const { profile, loadDemoProfile, clearProfile } = useCareBridge();
+  const { error, isSaving, profile, loadDemoProfile, clearProfile } = useCareBridge();
 
   if (!profile) {
     return (
@@ -26,13 +27,21 @@ export function ProfilePage() {
         <div className="mt-4 flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={loadDemoProfile}
+            onClick={() => void loadDemoProfile()}
+            disabled={isSaving}
             className="inline-flex min-h-11 cursor-pointer items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-200 hover:bg-primary/90 focus:outline-none focus:ring-4 focus:ring-primary/25"
           >
-            Load Demo Persona
+            {isSaving ? "Loading Demo..." : "Load Demo Persona"}
           </button>
           <ActionLink to="/intake" variant="secondary">Start Intake</ActionLink>
         </div>
+        {error ? (
+          <div className="mt-4">
+            <ErrorState title="Session request failed">
+              <p>{error}</p>
+            </ErrorState>
+          </div>
+        ) : null}
       </EmptyState>
     );
   }
@@ -46,8 +55,7 @@ export function ProfilePage() {
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-normal">Profile</h1>
           <p className="mt-3 max-w-2xl leading-7 text-muted-foreground">
-            This is local demo information for the Phase 1 skeleton. It is not persisted to a
-            backend until Phase 2.
+            This is synthetic demo information saved through the Phase 2 session backend.
           </p>
         </div>
         <button
@@ -63,7 +71,7 @@ export function ProfilePage() {
         {Object.entries(profile).map(([key, value]) => (
           <div key={key} className="rounded-md border border-border bg-muted/40 p-4">
             <dt className="text-sm text-muted-foreground">{labels[key] ?? key}</dt>
-            <dd className="mt-1 font-semibold">{String(value).replaceAll("_", " ")}</dd>
+            <dd className="mt-1 font-semibold">{formatProfileValue(key, value, profile)}</dd>
           </div>
         ))}
       </dl>

@@ -1,4 +1,4 @@
-import { ClipboardList, Home, ListChecks, UserRound, WalletCards } from "lucide-react";
+import { Activity, ClipboardList, Home, ListChecks, UserRound, WalletCards } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -7,6 +7,7 @@ const navItems = [
   { to: "/intake", label: "Intake", icon: ClipboardList },
   { to: "/benefits", label: "Benefits", icon: WalletCards },
   { to: "/plan", label: "Plan", icon: ListChecks },
+  { to: "/rehab-snapshot", label: "Rehab Snapshot", icon: Activity },
   { to: "/profile", label: "Profile", icon: UserRound },
 ];
 

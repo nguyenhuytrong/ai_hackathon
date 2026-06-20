@@ -78,6 +78,37 @@ const recommendationRun = {
   disclaimer: "CareBridge does not determine final eligibility, provide medical advice, or replace healthcare professionals.",
 };
 
+const rehabRecommendationRun = {
+  ...recommendationRun,
+  recommendations: [
+    {
+      id: "rehab_services",
+      title: "Rehabilitation Services",
+      category: "rehab",
+      matchStatus: "possible_match",
+      matchedFactors: ["Mobility snapshot observed moderate mobility concern.", "Difficulty standing"],
+      missingInformation: ["Confirm the mobility snapshot observations with the care team."],
+      whyThisMayFit: ["Mobility snapshot observed moderate mobility concern.", "Difficulty standing"],
+      documentsToPrepare: ["Discharge paperwork", "Therapy referral"],
+      nextSteps: ["Call the clinic or discharge planner to confirm the first rehabilitation appointment."],
+      sources: [],
+      evidenceStatus: "insufficient",
+    },
+    ...recommendationRun.recommendations,
+  ],
+};
+
+const rehabSnapshotResponse = {
+  sessionId: "demo_123",
+  rehabSnapshot: {
+    mobilityConcern: "moderate",
+    observations: ["Difficulty standing", "Reduced arm movement"],
+    confidence: "medium",
+    capturedAt: "2026-06-19T10:00:00Z",
+  },
+  suggestedRecompute: true,
+};
+
 const ragSearchResponse = {
   query: "transportation help for therapy appointments",
   results: [
@@ -185,6 +216,7 @@ describe("CareBridge Phase 1 product flow", () => {
     expect(screen.getByRole("link", { name: /^Intake$/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /^Benefits$/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /^Plan$/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Rehab Snapshot$/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /^Profile$/i })).toBeInTheDocument();
     expect(screen.getByText(/benefits and support navigator/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Your Support Navigation Plan/i })).toBeInTheDocument();
@@ -301,6 +333,67 @@ describe("CareBridge Phase 1 product flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /Load Demo Persona/i }));
 
     expect(await screen.findByText(/Backend unavailable/i)).toBeInTheDocument();
+  });
+
+  it("routes rehab snapshot through the CareBridge shell and requires a session", () => {
+    renderApp("/rehab-snapshot");
+
+    expect(screen.getByText(/Mobility snapshot needs an intake profile/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Start Intake/i })).toHaveAttribute("href", "/intake");
+    expect(screen.getByText(/does not provide medical advice/i)).toBeInTheDocument();
+  });
+
+  it("saves a demo rehab snapshot and refreshes support recommendations", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementationOnce(() => apiResponse(rehabSnapshotResponse))
+      .mockImplementationOnce(() => apiResponse(rehabRecommendationRun));
+    window.localStorage.setItem(
+      "carebridge.session",
+      JSON.stringify({ sessionId: "demo_123", profile: demoSession.profile }),
+    );
+
+    renderApp("/rehab-snapshot");
+
+    fireEvent.click(screen.getByRole("button", { name: /Use demo mobility snapshot/i }));
+    expect(screen.getByRole("heading", { name: /Optional Mobility Snapshot/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Update Support Plan/i }));
+
+    expect(await screen.findByText(/Care Plan Updated with Rehab Data/i)).toBeInTheDocument();
+    expect(screen.getByText(/Rehab follow-up moved into the first support priority/i)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://localhost:8000/api/v1/sessions/demo_123/rehab-snapshot",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining("\"mobilityConcern\":\"moderate\""),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "http://localhost:8000/api/v1/sessions/demo_123/recommendations",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("shows a non-blocking rehab snapshot fallback when camera access fails", async () => {
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockRejectedValue(new Error("denied")),
+      },
+    });
+    window.localStorage.setItem(
+      "carebridge.session",
+      JSON.stringify({ sessionId: "demo_123", profile: demoSession.profile }),
+    );
+
+    renderApp("/rehab-snapshot");
+
+    fireEvent.click(screen.getByRole("button", { name: /Start camera assessment/i }));
+
+    expect(await screen.findByText(/Camera assessment is unavailable/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Use demo mobility snapshot/i })).toBeInTheDocument();
   });
 
   it("renders the action plan from backend recommendation output", async () => {

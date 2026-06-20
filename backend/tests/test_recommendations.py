@@ -229,6 +229,74 @@ def test_recommendations_keep_insufficient_evidence_when_chunks_do_not_match(cli
     assert recommendation["evidenceStatus"] == "insufficient"
 
 
+def test_moderate_rehab_snapshot_prioritizes_rehab_support(client: TestClient):
+    session_id = create_session_with_profile(
+        client,
+        {
+            **DEMO_PROFILE,
+            "mobility": "independent",
+            "transportation": "no_vehicle",
+            "caregiverBurden": "low",
+            "caregiverWorking": False,
+        },
+    )
+    client.post(
+        f"/api/v1/sessions/{session_id}/rehab-snapshot",
+        json={
+            "mobilityConcern": "moderate",
+            "observations": ["Difficulty standing", "Reduced arm movement"],
+            "confidence": "medium",
+        },
+    )
+
+    response = client.post(f"/api/v1/sessions/{session_id}/recommendations", json={})
+
+    recommendations = response.json()["data"]["recommendations"]
+    assert [recommendation["id"] for recommendation in recommendations][:2] == [
+        "rehab_services",
+        "transportation_assistance",
+    ]
+    assert "Mobility snapshot observed moderate mobility concern." in recommendations[0]["matchedFactors"]
+    assert "Difficulty standing" in recommendations[0]["matchedFactors"]
+
+
+def test_high_rehab_snapshot_prioritizes_home_health_discussion(client: TestClient):
+    session_id = create_session_with_profile(
+        client,
+        {
+            **DEMO_PROFILE,
+            "mobility": "not_sure",
+            "transportation": "available",
+            "caregiverBurden": "low",
+            "caregiverWorking": False,
+        },
+    )
+    client.post(
+        f"/api/v1/sessions/{session_id}/rehab-snapshot",
+        json={
+            "mobilityConcern": "high",
+            "observations": ["Standing balance looked unsteady"],
+            "confidence": "medium",
+        },
+    )
+
+    response = client.post(f"/api/v1/sessions/{session_id}/recommendations", json={})
+
+    recommendations = response.json()["data"]["recommendations"]
+    assert [recommendation["id"] for recommendation in recommendations][:2] == [
+        "rehab_services",
+        "home_health_discussion",
+    ]
+    home_health = recommendations[1]
+    assert home_health["matchStatus"] == "possible_match"
+    assert "Mobility snapshot observed high mobility concern." in home_health["matchedFactors"]
+    text = str(recommendations).lower()
+    assert "diagnosis" not in text
+    assert "you qualify" not in text
+    assert "approved" not in text
+    assert "guaranteed" not in text
+
+
 def seed_rag_source(db: Session) -> None:
     IngestionService(
         repository=SourceRepository(db),

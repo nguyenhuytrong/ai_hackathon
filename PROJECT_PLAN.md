@@ -656,17 +656,78 @@ Verification commands:
 
 ### Phase 8 — Module 2 Integration
 
-Goals:
+Summary:
 
-- Add Rehab Snapshot endpoint.
-- Accept mobility concern and observations.
-- Update support priorities.
-- Show “Care Plan Updated with Rehab Data”.
+Merge the friend’s `ai_hackathon-module2` Rehab Snapshot into the main CareBridge app as an integrated optional route, not a separate service. Module 2 becomes a supporting mobility-signal workflow inside Module 1: it can run the camera-based assessment, summarize observations, save a Rehab Snapshot to the existing FastAPI backend, and trigger a recommendation refresh that can prioritize rehab, home-health, and transportation support without making diagnosis or eligibility claims.
 
-Deliverables:
+Keep the old `ai_hackathon-module2/` folder as reference during implementation; do not run it as a second app after integration.
 
-- Module 2 can send summary to Module 1.
-- Rehab Snapshot updates recommendation priority without becoming the core product.
+Key changes:
+
+1. Frontend integration:
+   - Add route `/rehab-snapshot` and a secondary nav/action entry labeled `Rehab Snapshot`.
+   - Port the Module 2 camera flow into TypeScript under the main frontend, preserving the three tasks: Sit-to-Stand, Arm Raise, and Standing Balance.
+   - Replace Module 2 emoji/CSS-heavy UI with existing CareBridge Tailwind healthcare styling and Lucide icons.
+   - Add a deterministic `Use demo mobility snapshot` path for tests, demos, camera-denied browsers, and offline MediaPipe failures.
+   - After assessment completion, show `Optional Mobility Snapshot` with mobility concern, observations, and `Update Support Plan`.
+
+2. Backend integration:
+   - Add `rehab_snapshots` SQLAlchemy model/table through the existing create-all pattern.
+   - Add router, service, repository, and schema layers for `POST /api/v1/sessions/{sessionId}/rehab-snapshot`.
+   - Use the `API_CONTRACT.md` request shape: `mobilityConcern`, `observations`, `confidence`, and `capturedAt`.
+   - Return the saved snapshot plus `suggestedRecompute: true`.
+   - Do not store raw video, pose frames, or raw camera landmarks in Module 1.
+
+3. Recommendation integration:
+   - Recommendation generation loads the latest snapshot for the session and passes it into rule matching and the LangGraph trace as supporting context.
+   - If `mobilityConcern` is `moderate` or `high`, add safe matched factors to rehab-related recommendations and move `rehab_services` earlier in the returned recommendation list.
+   - If `mobilityConcern` is `high`, also prioritize `home_health_discussion` when present or create a safe `possible_match` discussion card if intake mobility was missing.
+   - Keep statuses limited to existing safe values and never treat Rehab Snapshot as eligibility, diagnosis, or clinical severity.
+
+4. Module 2 backend handling:
+   - Do not merge the standalone Module 2 Groq backend or require `GROQ_API_KEY`.
+   - Generate caregiver-facing summary copy deterministically in Module 1 from snapshot values, or reuse the existing Phase 6 LLM adapter only if already configured.
+   - Frontend must not call any LLM API directly.
+
+Public interfaces:
+
+- Backend schemas:
+  - `RehabMobilityConcern = "low" | "moderate" | "high" | "unable_to_assess"`
+  - `RehabSnapshotRequest { mobilityConcern, observations, confidence?, capturedAt? }`
+  - `RehabSnapshotResponse { sessionId, rehabSnapshot, suggestedRecompute }`
+- Frontend types:
+  - `RehabTaskMetrics` for local-only task results.
+  - `RehabSnapshotRequest` matching the backend request.
+  - `RehabSnapshot` for saved response state.
+- Frontend API client:
+  - `submitRehabSnapshot(sessionId, request)`.
+  - CareBridge context stores the latest snapshot in local state/localStorage cache and clears stale recommendations after save.
+
+Test plan:
+
+- Backend saving a snapshot for an existing session returns the standard success wrapper and `suggestedRecompute: true`.
+- Backend missing sessions return standard `404`, invalid mobility concern returns standard `422`, and persisted snapshots exclude raw video or landmark fields.
+- Recommendation generation with `moderate` snapshot prioritizes rehab support and includes observed mobility factors.
+- Recommendation generation with `high` snapshot prioritizes rehab and home-health discussion.
+- Frontend `/rehab-snapshot` renders inside the CareBridge shell and empty session state routes users to intake or demo load.
+- Demo mobility snapshot posts to `/sessions/{sessionId}/rehab-snapshot`, shows `Care Plan Updated with Rehab Data`, and triggers recommendation refresh.
+- Camera-denied or MediaPipe-load failure shows a non-blocking fallback state.
+- Benefits and Plan render the updated rehab priority after snapshot save.
+- Responsible AI copy remains visible and forbidden certainty language does not render: `you qualify`, `approved`, `guaranteed`.
+
+Verification commands:
+
+- `rtk backend/.venv/bin/python -m pytest backend/tests -q`
+- `rtk npm --prefix frontend test -- --run`
+- `rtk npm --prefix frontend run build`
+
+Assumptions:
+
+- Phase 8 uses one integrated CareBridge frontend/backend; Module 2 is no longer a separately run app for the demo.
+- MediaPipe remains browser/CDN-loaded for MVP, with a demo fallback to keep judging reliable.
+- No new package dependencies are required.
+- Rehab Snapshot is optional and supporting only; it never diagnoses, scores stroke severity, or determines final eligibility.
+- Raw video and raw pose landmarks are not persisted.
 
 ### Phase 9 — Demo Polish
 

@@ -119,6 +119,43 @@ export type RecommendationRun = {
   disclaimer: string;
 };
 
+export type RehabMobilityConcern = "low" | "moderate" | "high" | "unable_to_assess";
+
+export type RehabTaskMetrics = {
+  sit?: {
+    reps: number;
+    avgTimeSec?: number | null;
+    difficulty: "low" | "moderate" | "high";
+  };
+  arm?: {
+    peakLeft?: number | null;
+    peakRight?: number | null;
+    asymmetryDeg: number;
+    weakSide: "left" | "right";
+    difficulty: "low" | "moderate" | "high";
+  };
+  balance?: {
+    swayMagnitude: number;
+    durationSec: number;
+    difficulty: "low" | "moderate" | "high";
+  };
+};
+
+export type RehabSnapshotRequest = {
+  mobilityConcern: RehabMobilityConcern;
+  observations: string[];
+  confidence?: string | null;
+  capturedAt?: string | null;
+};
+
+export type RehabSnapshot = RehabSnapshotRequest;
+
+export type RehabSnapshotResponse = {
+  sessionId: string;
+  rehabSnapshot: RehabSnapshot;
+  suggestedRecompute: boolean;
+};
+
 export type RagSearchFilters = {
   category?: string;
   state?: string;

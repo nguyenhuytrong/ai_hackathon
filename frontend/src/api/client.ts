@@ -6,6 +6,8 @@ import type {
   RagSearchResponse,
   RecommendationRun,
   ResourceDetail,
+  RehabSnapshotRequest,
+  RehabSnapshotResponse,
   Session,
   SourceDocument,
   UpdateIntakeRequest,
@@ -85,4 +87,11 @@ export function getSource(sourceId: string) {
 
 export function getResource(resourceId: string) {
   return requestApi<ResourceDetail>(`/resources/${resourceId}`);
+}
+
+export function submitRehabSnapshot(sessionId: string, request: RehabSnapshotRequest) {
+  return requestApi<RehabSnapshotResponse>(`/sessions/${sessionId}/rehab-snapshot`, {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
 }

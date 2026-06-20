@@ -3,7 +3,13 @@ from uuid import uuid4
 from fastapi import HTTPException, status
 
 from app.ai.llm_provider import FakeRecommendationLlmProvider, RecommendationLlmProvider
-from app.db.repositories import RecommendationRunRepository, ResourceRepository, SessionRepository, SourceRepository
+from app.db.repositories import (
+    RecommendationRunRepository,
+    RehabSnapshotRepository,
+    ResourceRepository,
+    SessionRepository,
+    SourceRepository,
+)
 from app.rag.ingestion.embeddings import EmbeddingProvider
 from app.schemas.recommendation import GenerateRecommendationsRequest, RecommendationRunResponse
 from app.seed.resources import seed_resources
@@ -19,6 +25,7 @@ class RecommendationService:
         sessions: SessionRepository,
         resources: ResourceRepository,
         recommendation_runs: RecommendationRunRepository,
+        rehab_snapshots: RehabSnapshotRepository | None = None,
         sources: SourceRepository | None = None,
         embedding_provider: EmbeddingProvider | None = None,
         llm_provider: RecommendationLlmProvider | None = None,
@@ -26,6 +33,7 @@ class RecommendationService:
         self.sessions = sessions
         self.resources = resources
         self.recommendation_runs = recommendation_runs
+        self.rehab_snapshots = rehab_snapshots
         self.sources = sources
         self.embedding_provider = embedding_provider
         self.llm_provider = llm_provider or FakeRecommendationLlmProvider()
@@ -37,6 +45,7 @@ class RecommendationService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
         run_id = f"rec_{uuid4().hex[:12]}"
+        rehab_snapshot = self._latest_rehab_snapshot(session_id)
         graph_result = RecommendationGraphRunner(
             resources={resource.id: resource for resource in self.resources.list_resources()},
             sources=self.sources,
@@ -46,12 +55,14 @@ class RecommendationService:
             profile=session.profile_json,
             run_id=run_id,
             include_rag_evidence=request.includeRagEvidence,
+            rehab_snapshot=rehab_snapshot,
         )
         self.recommendation_runs.create(
             run_id=run_id,
             session_id=session_id,
             input_snapshot={
                 "profile": session.profile_json,
+                "rehabSnapshot": rehab_snapshot,
                 "includeRagEvidence": request.includeRagEvidence,
                 "workflow": graph_result.trace.model_dump(mode="json"),
             },
@@ -66,3 +77,16 @@ class RecommendationService:
         if run is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recommendation run not found")
         return RecommendationRunResponse.model_validate(run.result_json)
+
+    def _latest_rehab_snapshot(self, session_id: str) -> dict | None:
+        if self.rehab_snapshots is None:
+            return None
+        snapshot = self.rehab_snapshots.get_latest(session_id)
+        if snapshot is None:
+            return None
+        return {
+            "mobilityConcern": snapshot.mobility_concern,
+            "observations": snapshot.observations_json,
+            "confidence": snapshot.confidence,
+            "capturedAt": snapshot.captured_at.isoformat() if snapshot.captured_at else None,
+        }

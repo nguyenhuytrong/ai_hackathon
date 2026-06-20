@@ -1,7 +1,15 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import DocumentChunk, EligibilityRule, IntakeSession, RecommendationRun, Resource, SourceDocument
+from app.db.models import (
+    DocumentChunk,
+    EligibilityRule,
+    IntakeSession,
+    RecommendationRun,
+    RehabSnapshot,
+    Resource,
+    SourceDocument,
+)
 
 
 class SessionRepository:
@@ -108,6 +116,25 @@ class RecommendationRunRepository:
             select(RecommendationRun)
             .where(RecommendationRun.session_id == session_id)
             .order_by(RecommendationRun.created_at.desc())
+        )
+        return self.db.scalars(statement).first()
+
+
+class RehabSnapshotRepository:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def create(self, snapshot: RehabSnapshot) -> RehabSnapshot:
+        self.db.add(snapshot)
+        self.db.commit()
+        self.db.refresh(snapshot)
+        return snapshot
+
+    def get_latest(self, session_id: str) -> RehabSnapshot | None:
+        statement = (
+            select(RehabSnapshot)
+            .where(RehabSnapshot.session_id == session_id)
+            .order_by(RehabSnapshot.created_at.desc())
         )
         return self.db.scalars(statement).first()
 

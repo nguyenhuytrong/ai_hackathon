@@ -53,6 +53,7 @@ class RecommendationWorkflowTrace(BaseModel):
     graphVersion: str
     provider: dict[str, str]
     profileSummary: dict
+    rehabSnapshot: dict | None = None
     ruleMatches: list[dict]
     retrievalQueries: list[dict]
     evidence: list[dict]

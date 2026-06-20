@@ -2,7 +2,7 @@ from app.schemas.recommendation import RuleMatchResult
 
 
 class RuleMatchingService:
-    def match_profile(self, profile: dict) -> list[RuleMatchResult]:
+    def match_profile(self, profile: dict, rehab_snapshot: dict | None = None) -> list[RuleMatchResult]:
         matches: list[RuleMatchResult] = []
         mobility = profile.get("mobility")
         transportation = profile.get("transportation")
@@ -85,8 +85,90 @@ class RuleMatchingService:
                 )
             )
 
-        return matches
+        return self._apply_rehab_snapshot(matches, rehab_snapshot)
 
     @staticmethod
     def _missing(value: object) -> bool:
         return value is None or value == "not_sure"
+
+    def _apply_rehab_snapshot(
+        self,
+        matches: list[RuleMatchResult],
+        rehab_snapshot: dict | None,
+    ) -> list[RuleMatchResult]:
+        if not rehab_snapshot:
+            return matches
+
+        concern = rehab_snapshot.get("mobilityConcern")
+        if concern not in {"moderate", "high"}:
+            return matches
+
+        snapshot_factors = [
+            f"Mobility snapshot observed {concern} mobility concern.",
+            *rehab_snapshot.get("observations", []),
+        ]
+        matches = self._upsert_match(
+            matches,
+            RuleMatchResult(
+                resourceId="rehab_services",
+                matchStatus="possible_match",
+                matchedFactors=snapshot_factors,
+                missingInformation=["Confirm the mobility snapshot observations with the care team."],
+            ),
+        )
+
+        if concern == "high":
+            matches = self._upsert_match(
+                matches,
+                RuleMatchResult(
+                    resourceId="home_health_discussion",
+                    matchStatus="possible_match",
+                    matchedFactors=snapshot_factors,
+                    missingInformation=["Ask whether home-based support or mobility equipment should be discussed."],
+                ),
+            )
+
+        priority_order = ["rehab_services", "home_health_discussion"] if concern == "high" else ["rehab_services"]
+        prioritized = []
+        remaining = matches.copy()
+        for resource_id in priority_order:
+            match = next((candidate for candidate in remaining if candidate.resourceId == resource_id), None)
+            if match:
+                prioritized.append(match)
+                remaining.remove(match)
+        return prioritized + remaining
+
+    @staticmethod
+    def _upsert_match(matches: list[RuleMatchResult], snapshot_match: RuleMatchResult) -> list[RuleMatchResult]:
+        updated = []
+        replaced = False
+        for match in matches:
+            if match.resourceId != snapshot_match.resourceId:
+                updated.append(match)
+                continue
+
+            existing_factors = list(match.matchedFactors)
+            for factor in snapshot_match.matchedFactors:
+                if factor not in existing_factors:
+                    existing_factors.append(factor)
+            missing_information = list(match.missingInformation)
+            for item in snapshot_match.missingInformation:
+                if item not in missing_information:
+                    missing_information.append(item)
+            updated.append(
+                RuleMatchResult(
+                    resourceId=match.resourceId,
+                    matchStatus=(
+                        snapshot_match.matchStatus
+                        if match.matchStatus == "more_info_needed"
+                        else match.matchStatus
+                    ),
+                    matchedFactors=existing_factors,
+                    missingInformation=missing_information,
+                )
+            )
+            replaced = True
+
+        if not replaced:
+            updated.append(snapshot_match)
+        return updated

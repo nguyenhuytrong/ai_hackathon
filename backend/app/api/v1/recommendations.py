@@ -3,7 +3,13 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.ai.llm_provider import build_recommendation_llm_provider
-from app.db.repositories import RecommendationRunRepository, ResourceRepository, SessionRepository, SourceRepository
+from app.db.repositories import (
+    RecommendationRunRepository,
+    RehabSnapshotRepository,
+    ResourceRepository,
+    SessionRepository,
+    SourceRepository,
+)
 from app.db.session import get_db
 from app.rag.ingestion.embeddings import build_embedding_provider
 from app.schemas.common import ApiSuccess
@@ -19,6 +25,7 @@ def get_recommendation_service(db: Session = Depends(get_db)) -> RecommendationS
         sessions=SessionRepository(db),
         resources=ResourceRepository(db),
         recommendation_runs=RecommendationRunRepository(db),
+        rehab_snapshots=RehabSnapshotRepository(db),
         sources=SourceRepository(db),
         embedding_provider=build_embedding_provider(
             provider=settings.embedding_provider,

@@ -126,6 +126,26 @@ class RecommendationRun(Base):
     )
 
 
+class RehabSnapshot(Base):
+    __tablename__ = "rehab_snapshots"
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    session_id: Mapped[str] = mapped_column(Text, ForeignKey("intake_sessions.id"), nullable=False)
+    mobility_concern: Mapped[str] = mapped_column(Text, nullable=False)
+    observations_json: Mapped[list] = mapped_column(
+        JSON().with_variant(JSONB, "postgresql"),
+        nullable=False,
+        default=list,
+    )
+    confidence: Mapped[str] = mapped_column(Text, nullable=True)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+
 class SourceDocument(Base):
     __tablename__ = "source_documents"
 

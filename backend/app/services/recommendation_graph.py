@@ -34,6 +34,7 @@ FORBIDDEN_PHRASES = ("you qualify", "approved", "guaranteed")
 class RecommendationGraphState(TypedDict, total=False):
     run_id: str
     profile: dict
+    rehab_snapshot: dict | None
     include_rag_evidence: bool
     profile_summary: dict
     rule_matches: list[dict]
@@ -69,11 +70,19 @@ class RecommendationGraphRunner:
         self.rule_matching = RuleMatchingService()
         self.graph = self._compile_graph()
 
-    def run(self, *, profile: dict, run_id: str, include_rag_evidence: bool) -> RecommendationGraphResult:
+    def run(
+        self,
+        *,
+        profile: dict,
+        run_id: str,
+        include_rag_evidence: bool,
+        rehab_snapshot: dict | None = None,
+    ) -> RecommendationGraphResult:
         state = self.graph.invoke(
             {
                 "run_id": run_id,
                 "profile": profile,
+                "rehab_snapshot": rehab_snapshot,
                 "include_rag_evidence": include_rag_evidence,
                 "fallback_reason": None,
             }
@@ -91,6 +100,7 @@ class RecommendationGraphRunner:
             graphVersion=GRAPH_VERSION,
             provider={"name": self.llm_provider.name, "model": self.llm_provider.model},
             profileSummary=state["profile_summary"],
+            rehabSnapshot=state.get("rehab_snapshot"),
             ruleMatches=state["rule_matches"],
             retrievalQueries=state["retrieval_queries"],
             evidence=state["evidence_grades"],
@@ -142,7 +152,7 @@ class RecommendationGraphRunner:
         return {"profile_summary": summary.model_dump(mode="json")}
 
     def _run_rule_matching(self, state: RecommendationGraphState) -> dict:
-        matches = self.rule_matching.match_profile(state["profile"])
+        matches = self.rule_matching.match_profile(state["profile"], state.get("rehab_snapshot"))
         recommendations = [
             self._recommendation_from_match(self.resources[match.resourceId], match)
             for match in matches
@@ -250,6 +260,7 @@ class RecommendationGraphRunner:
             "ruleMatches": state["rule_matches"],
             "retrievalQueries": state["retrieval_queries"],
             "evidence": state["evidence_bundles"],
+            "rehabSnapshot": state.get("rehab_snapshot"),
             "fallbackRecommendations": fallback_payload["recommendations"],
             "fallbackActionPlan": fallback_payload["actionPlan"],
             "fallbackQuestionsToAsk": fallback_payload["questionsToAsk"],

@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     embedding_model: str = Field(default="fake-carebridge-v1", validation_alias="EMBEDDING_MODEL")
     embedding_dimensions: int = Field(default=64, validation_alias="EMBEDDING_DIMENSIONS")
     embedding_api_key: str | None = Field(default=None, validation_alias="EMBEDDING_API_KEY")
+    groq_api_key: str | None = Field(default=None, validation_alias="GROQ_API_KEY")
+    rehab_snapshot_llm_enabled: bool = Field(default=False, validation_alias="REHAB_SNAPSHOT_LLM_ENABLED")
+    rehab_snapshot_model: str = Field(default="llama-3.3-70b-versatile", validation_alias="REHAB_SNAPSHOT_MODEL")
 
     model_config = SettingsConfigDict(
         env_file=(".env", "backend/.env"),

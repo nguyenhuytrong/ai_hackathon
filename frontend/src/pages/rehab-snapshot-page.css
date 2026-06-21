@@ -1,0 +1,61 @@
+/* Rehab Snapshot variables only. Keep this file light so it does not reset the whole CareBridge app. */
+:root {
+  --teal: #0D7377;
+  --teal-light: #14A8AD;
+  --teal-dim: #E6F4F4;
+  --amber: #F0A500;
+  --red: #D94F4F;
+  --green: #2E9E6B;
+  --ink: #0F1C1D;
+  --ink-60: #5A7172;
+  --ink-30: #B3C4C5;
+  --surface: #F7FAFA;
+  --white: #FFFFFF;
+  --radius: 12px;
+  --shadow: 0 2px 16px rgba(13,115,119,.10);
+}
+
+.rsrehab-page {
+  color: var(--ink);
+}
+
+.rsrehab-page .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all .18s ease;
+  text-decoration: none;
+}
+
+.rsrehab-page .btn-primary {
+  background: var(--teal);
+  color: var(--white);
+}
+
+.rsrehab-page .btn-primary:hover {
+  background: var(--teal-light);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.rsrehab-page .btn-outline {
+  background: transparent;
+  color: var(--teal);
+  border: 1.5px solid var(--teal);
+}
+
+.rsrehab-page .btn-outline:hover {
+  background: var(--teal-dim);
+}
+
+.rsrehab-page .btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+  transform: none;
+}

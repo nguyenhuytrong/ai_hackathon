@@ -1,6 +1,5 @@
-<<<<<<< HEAD
 # ai_hackathon
-=======
+
 # CareBridge Navigator
 
 CareBridge Navigator helps caregivers after stroke discharge understand possible benefits and support options, what information is missing, and what steps to take next.
@@ -94,4 +93,3 @@ The compose file uses a pgvector-ready PostgreSQL image so later RAG phases can 
 ## Phase 0 Stop Point
 
 Phase 0 is complete when the frontend starts, the backend starts, PostgreSQL runs locally, and the health endpoint responds. Product flow work starts in Phase 1.
->>>>>>> combined

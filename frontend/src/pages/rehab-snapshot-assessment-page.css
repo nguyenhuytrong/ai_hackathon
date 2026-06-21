@@ -1,78 +1,125 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Assessment page — scoped rsassess- prefix */
 
-:root {
-  --background: 198 33% 96%;
-  --foreground: 215 28% 17%;
-  --muted: 198 26% 91%;
-  --muted-foreground: 216 16% 39%;
-  --primary: 205 73% 32%;
-  --primary-foreground: 0 0% 100%;
-  --accent: 43 89% 88%;
-  --accent-foreground: 33 45% 22%;
-  --border: 204 22% 84%;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+.rsassess-wrap {
+  display: flex;
+  align-items: flex-start;
 }
 
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-button,
-input,
-textarea,
-select {
-  font: inherit;
-}
-
-.assessment-page {
-  min-height: 100vh; display: flex; flex-direction: column;
-  background: var(--surface);
-}
-.assessment-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 32px;
-  background: white; border-bottom: 1px solid #D9EDED;
-}
-.assessment-title {
-  display: flex; align-items: center; gap: 10px;
-  font-size: 15px; font-weight: 500; color: var(--ink-60);
-}
-.header-sep { color: var(--ink-30); }
-
-.assessment-main {
-  flex: 1; display: grid;
-  grid-template-columns: 1fr 300px;
-  gap: 24px; padding: 24px 32px;
-  max-width: 1100px; margin: 0 auto; width: 100%;
+/* Single white card containing camera + sidebar */
+.rsassess-card {
+  width: 100%;
+  background: white;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  padding: 20px;
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 20px;
+  align-items: start;
 }
 @media (max-width: 900px) {
-  .assessment-main { grid-template-columns: 1fr; }
+  .rsassess-card {
+    grid-template-columns: 1fr;
+  }
 }
 
-.camera-container { width: 100%; }
-
-.assessment-sidebar { display: flex; flex-direction: column; gap: 14px; }
-.sidebar-card h3   { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
-.instruction-list  { padding-left: 18px; display: flex; flex-direction: column; gap: 8px; }
-.instruction-list li { font-size: 13px; line-height: 1.55; color: var(--ink-60); }
-.instruction-list strong { color: var(--ink); }
-
-.warning-card {
-  background: #FFF8E7; border: 1px solid #F0C050;
-  font-size: 13px; color: #7A5A00; line-height: 1.5;
+/* Camera — fill full column, no extra max-width */
+.rsassess-camera {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
 }
-.info-card {
-  background: var(--teal-dim); border: 1px solid #A8D8D8;
-  font-size: 12px; color: var(--teal); line-height: 1.55;
+.rsassess-camera .camera-wrap {
+  max-width: 100% !important;
+  margin: 0 !important;
+  border-radius: 8px;
+}
+
+/* Sidebar */
+.rsassess-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Back button */
+.rsassess-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background .15s, color .15s;
+  width: fit-content;
+  margin-bottom: 2px;
+}
+.rsassess-back:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+/* Info card */
+.rsassess-info-card {
+  background: white;
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.rsassess-info-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .7px;
+  color: hsl(var(--muted-foreground));
+  margin: 0 0 10px;
+}
+.rsassess-list {
+  padding-left: 16px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  list-style: decimal;
+}
+.rsassess-list li {
+  font-size: 13px;
+  line-height: 1.55;
+  color: hsl(var(--muted-foreground));
+}
+.rsassess-list strong {
+  color: hsl(var(--foreground));
+}
+
+/* Warning card */
+.rsassess-warning-card {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-left: 3px solid #f59e0b;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: #78350f;
+  line-height: 1.55;
+}
+
+/* Notice card */
+.rsassess-notice-card {
+  background: hsl(205 73% 32% / .06);
+  border: 1px solid hsl(205 73% 32% / .2);
+  border-left: 3px solid hsl(var(--primary));
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 12px;
+  color: hsl(var(--primary));
+  line-height: 1.6;
+}
+.rsassess-notice-card strong {
+  font-weight: 700;
 }

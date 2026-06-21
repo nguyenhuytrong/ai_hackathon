@@ -3,44 +3,48 @@ import "./rehab-snapshot-assessment-page.css";
 
 export default function RehabSnapshotAssessmentPage({ onComplete, onBack }) {
   return (
-    <div className="assessment-page">
-      <header className="assessment-header">
-        <button className="btn btn-ghost" onClick={onBack}>
-          ← Back
-        </button>
-        <div className="assessment-title">
-          <span className="module-tag">Rehab Snapshot</span>
-          <span className="header-sep">·</span>
-          <span>Mobility Assessment</span>
-        </div>
-        <div style={{ width: 64 }} />
-      </header>
+    // Bỏ subheader — bọc toàn bộ trong 1 card trắng
+    <div className="rsassess-wrap">
+      <div className="rsassess-card">
 
-      <main className="assessment-main">
-        <div className="camera-container">
+        {/* Camera column */}
+        <div className="rsassess-camera">
           <CameraView onAllComplete={onComplete} />
         </div>
-        <aside className="assessment-sidebar">
-          <div className="card sidebar-card">
-            <h3>Instructions</h3>
-            <ol className="instruction-list">
-              <li>Position yourself so your full body is visible in the frame.</li>
-              <li>Ensure good lighting from the front.</li>
+
+        {/* Sidebar column */}
+        <aside className="rsassess-sidebar">
+
+          {/* Back link ở top sidebar */}
+          <button className="rsassess-back" onClick={onBack}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.5"
+              strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 5l-7 7 7 7"/>
+            </svg>
+            Back
+          </button>
+
+          <div className="rsassess-info-card">
+            <p className="rsassess-info-title">Instructions</p>
+            <ol className="rsassess-list">
+              <li>Position yourself so your <strong>full body</strong> is visible.</li>
+              <li>Ensure <strong>good lighting</strong> from the front.</li>
               <li>Click <strong>Start Task</strong> before each exercise.</li>
-              <li>A caregiver or support person may stand nearby.</li>
+              <li>A caregiver may stand nearby for support.</li>
             </ol>
           </div>
-          <div className="card sidebar-card warning-card">
-            <p>⚠️ Stop immediately if you feel pain, dizziness, or discomfort.</p>
+
+          <div className="rsassess-warning-card">
+            <p>⚠️ <strong>Stop immediately</strong> if you feel pain, dizziness, or discomfort.</p>
           </div>
-          <div className="card sidebar-card info-card">
-            <p>
-              Results are <strong>not</strong> a medical diagnosis.
-              This tool supports caregiver observation only.
-            </p>
+
+          <div className="rsassess-notice-card">
+            <p>Results are <strong>not</strong> a medical diagnosis. For caregiver observation only.</p>
           </div>
+
         </aside>
-      </main>
+      </div>
     </div>
   );
 }

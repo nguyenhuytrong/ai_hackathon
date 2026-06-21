@@ -155,6 +155,10 @@ def seed_resources(repository: ResourceRepository) -> None:
                 details_json=seed["details_json"],
             )
         )
+
+    repository.commit()
+
+    for seed in RESOURCE_SEEDS:
         repository.replace_rules(
             seed["id"],
             [
@@ -170,4 +174,5 @@ def seed_resources(repository: ResourceRepository) -> None:
                 for rule in seed["rules"]
             ],
         )
+
     repository.commit()

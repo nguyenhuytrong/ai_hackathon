@@ -30,6 +30,9 @@ class IngestionService:
         dry_run: bool = False,
     ) -> IngestionRunSummary:
         summary = IngestionRunSummary(dryRun=dry_run)
+
+        prepared_entries = []
+
         for entry in entries:
             text = clean_text(
                 load_source_text(
@@ -45,12 +48,16 @@ class IngestionService:
             summary.sourcesProcessed += 1
             summary.chunksCreated += len(chunks)
             summary.sourceIds.append(entry.sourceId)
+
             if existing is None or existing.content_hash != content_hash:
                 summary.sourcesChanged += 1
 
-            if dry_run:
-                continue
+            prepared_entries.append((entry, content_hash, chunks))
 
+        if dry_run:
+            return summary
+
+        for entry, content_hash, _chunks in prepared_entries:
             source = SourceDocument(
                 id=entry.sourceId,
                 title=entry.title,
@@ -65,8 +72,13 @@ class IngestionService:
                 content_hash=content_hash,
             )
             self.repository.upsert_source(source)
+
+        self.repository.commit()
+
+        for entry, _content_hash, chunks in prepared_entries:
             self.repository.replace_chunks(entry.sourceId, chunks)
-            self.repository.commit()
+
+        self.repository.commit()
 
         return summary
 

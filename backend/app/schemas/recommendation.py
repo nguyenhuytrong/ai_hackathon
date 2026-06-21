@@ -1,8 +1,9 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class GenerateRecommendationsRequest(BaseModel):
     includeRagEvidence: bool = False
+    useLlmExplanation: bool = False
     regenerate: bool = True
 
 
@@ -11,6 +12,7 @@ class RuleMatchResult(BaseModel):
     matchStatus: str
     matchedFactors: list[str]
     missingInformation: list[str]
+    reasonCodes: list[str] = Field(default_factory=list)
 
 
 class SourceCitation(BaseModel):
@@ -30,9 +32,11 @@ class SupportRecommendation(BaseModel):
     matchedFactors: list[str]
     missingInformation: list[str]
     whyThisMayFit: list[str]
+    evidenceSummary: list[str] = Field(default_factory=list)
     documentsToPrepare: list[str]
     nextSteps: list[str]
-    sources: list[SourceCitation] = []
+    questionsToAsk: list[str] = Field(default_factory=list)
+    sources: list[SourceCitation] = Field(default_factory=list)
     evidenceStatus: str = "insufficient"
 
 

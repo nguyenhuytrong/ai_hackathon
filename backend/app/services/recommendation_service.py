@@ -3,7 +3,12 @@ from uuid import uuid4
 from fastapi import HTTPException, status
 
 from app.db.models import Resource
-from app.db.repositories import RecommendationRunRepository, ResourceRepository, SessionRepository
+from app.db.repositories import RecommendationRunRepository, ResourceRepository, SessionRepository, SourceRepository
+from app.rag.ingestion.manifest import load_manifest
+from app.rag.ingestion.service import IngestionService
+from app.rag.retrieval.citation_builder import CitationBuilder
+from app.rag.retrieval.query_builder import RagQueryBuilder
+from app.schemas.rag import RagSearchRequest
 from app.schemas.recommendation import (
     ActionPlanItem,
     GenerateRecommendationsRequest,
@@ -12,6 +17,9 @@ from app.schemas.recommendation import (
     SupportRecommendation,
 )
 from app.seed.resources import seed_resources
+from app.services.explanation_service import ExplanationService
+from app.services.rag_search_service import RagSearchService
+from app.services.rule_matching_service import RuleMatchingService
 
 DISCLAIMER = "CareBridge does not determine final eligibility, provide medical advice, or replace healthcare professionals."
 
@@ -23,10 +31,20 @@ class RecommendationService:
         sessions: SessionRepository,
         resources: ResourceRepository,
         recommendation_runs: RecommendationRunRepository,
+        sources: SourceRepository | None = None,
+        rag_search: RagSearchService | None = None,
+        ingestion: IngestionService | None = None,
     ):
         self.sessions = sessions
         self.resources = resources
         self.recommendation_runs = recommendation_runs
+        self.sources = sources
+        self.rag_search = rag_search
+        self.ingestion = ingestion
+        self.rule_matching = RuleMatchingService()
+        self.query_builder = RagQueryBuilder()
+        self.citation_builder = CitationBuilder()
+        self.explanation = ExplanationService()
         seed_resources(resources)
 
     def generate(self, session_id: str, request: GenerateRecommendationsRequest) -> RecommendationRunResponse:
@@ -35,11 +53,15 @@ class RecommendationService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
         run_id = f"rec_{uuid4().hex[:12]}"
-        result = self._build_result(session.profile_json, run_id)
-        run = self.recommendation_runs.create(
+        result = self._build_result(session.profile_json, run_id, request)
+        self.recommendation_runs.create(
             run_id=run_id,
             session_id=session_id,
-            input_snapshot={"profile": session.profile_json, "includeRagEvidence": request.includeRagEvidence},
+            input_snapshot={
+                "profile": session.profile_json,
+                "includeRagEvidence": request.includeRagEvidence,
+                "useLlmExplanation": request.useLlmExplanation,
+            },
             result_json=result.model_dump(mode="json"),
         )
         return result
@@ -52,14 +74,33 @@ class RecommendationService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recommendation run not found")
         return RecommendationRunResponse.model_validate(run.result_json)
 
-    def _build_result(self, profile: dict, run_id: str) -> RecommendationRunResponse:
-        resources = {resource.id: resource for resource in self.resources.list_resources()}
-        matches = self._match_profile(profile)
-        recommendations = [
-            self._recommendation_from_match(resources[match.resourceId], match)
-            for match in matches
-            if match.matchStatus != "not_matched"
-        ]
+    def _build_result(
+        self,
+        profile: dict,
+        run_id: str,
+        request: GenerateRecommendationsRequest,
+    ) -> RecommendationRunResponse:
+        resource_list = self.resources.list_resources()
+        resource_map = {resource.id: resource for resource in resource_list}
+        matches = self.rule_matching.match(
+            profile=profile,
+            resources=resource_list,
+            rules=self.resources.list_rules(),
+        )
+        recommendations = []
+        for match in matches:
+            if match.matchStatus == "not_matched" or match.resourceId not in resource_map:
+                continue
+            recommendation = self._recommendation_from_match(resource_map[match.resourceId], match)
+            if request.includeRagEvidence:
+                recommendation = self._attach_rag_evidence(
+                    profile=profile,
+                    resource=resource_map[match.resourceId],
+                    match=match,
+                    recommendation=recommendation,
+                )
+            recommendations.append(recommendation)
+
         return RecommendationRunResponse(
             runId=run_id,
             summary=f"Based on your situation, CareBridge found {len(recommendations)} support areas worth exploring.",
@@ -69,94 +110,42 @@ class RecommendationService:
             disclaimer=DISCLAIMER,
         )
 
-    def _match_profile(self, profile: dict) -> list[RuleMatchResult]:
-        matches: list[RuleMatchResult] = []
-        mobility = profile.get("mobility")
-        transportation = profile.get("transportation")
-        caregiver_burden = profile.get("caregiverBurden")
-        caregiver_working = profile.get("caregiverWorking")
-        discharge_time = profile.get("dischargeTime")
+    def _attach_rag_evidence(
+        self,
+        *,
+        profile: dict,
+        resource: Resource,
+        match: RuleMatchResult,
+        recommendation: SupportRecommendation,
+    ) -> SupportRecommendation:
+        if self.rag_search is None:
+            return recommendation
+        self._ensure_sources_available()
+        query = self.query_builder.build_for_resource(
+            profile=profile,
+            resource=resource,
+            matched_factors=match.matchedFactors,
+        )
+        response = self.rag_search.search(
+            RagSearchRequest(
+                query=query,
+                resourceId=resource.id,
+                category=resource.category,
+                state=profile.get("state"),
+                county=profile.get("county"),
+                topK=5,
+            )
+        )
+        recommendation.sources = self.citation_builder.build(response.results, max_sources=3)
+        return self.explanation.enrich(recommendation, response.results)
 
-        if mobility in {"needs_some_assistance", "needs_substantial_assistance"}:
-            factors = ["Mobility support was reported as a current need."]
-            if discharge_time in {"less_than_7_days", "one_to_four_weeks"}:
-                factors.append("Recent discharge can make rehabilitation follow-up time-sensitive.")
-            matches.append(
-                RuleMatchResult(
-                    resourceId="rehab_services",
-                    matchStatus="likely_match",
-                    matchedFactors=factors,
-                    missingInformation=["Confirm whether outpatient or home-based therapy has already been scheduled."],
-                )
-            )
-        elif self._missing(mobility):
-            matches.append(
-                RuleMatchResult(
-                    resourceId="rehab_services",
-                    matchStatus="more_info_needed",
-                    matchedFactors=[],
-                    missingInformation=["Tell CareBridge how much mobility support is needed."],
-                )
-            )
-
-        if mobility == "needs_substantial_assistance":
-            matches.append(
-                RuleMatchResult(
-                    resourceId="home_health_discussion",
-                    matchStatus="possible_match",
-                    matchedFactors=["Substantial mobility assistance may make home-based support worth discussing."],
-                    missingInformation=["Confirm whether the care team has discussed home-based services."],
-                )
-            )
-
-        if transportation in {"no_vehicle", "cannot_drive", "need_support"}:
-            matches.append(
-                RuleMatchResult(
-                    resourceId="transportation_assistance",
-                    matchStatus="possible_match",
-                    matchedFactors=["Transportation is a barrier to follow-up care."],
-                    missingInformation=["Confirm whether the insurance plan covers non-emergency medical transportation."],
-                )
-            )
-        elif self._missing(transportation):
-            matches.append(
-                RuleMatchResult(
-                    resourceId="transportation_assistance",
-                    matchStatus="more_info_needed",
-                    matchedFactors=[],
-                    missingInformation=["Tell CareBridge whether transportation is a barrier."],
-                )
-            )
-
-        caregiver_factors = []
-        if caregiver_burden in {"elevated", "high"}:
-            caregiver_factors.append("Caregiver burden was marked as elevated or high.")
-        if caregiver_working is True:
-            caregiver_factors.append("The caregiver is balancing work responsibilities.")
-        if caregiver_factors:
-            matches.append(
-                RuleMatchResult(
-                    resourceId="caregiver_support_programs",
-                    matchStatus="possible_match",
-                    matchedFactors=caregiver_factors,
-                    missingInformation=["Confirm available respite, local nonprofit, or county caregiver support options."],
-                )
-            )
-        elif self._missing(caregiver_burden):
-            matches.append(
-                RuleMatchResult(
-                    resourceId="caregiver_support_programs",
-                    matchStatus="more_info_needed",
-                    matchedFactors=[],
-                    missingInformation=["Tell CareBridge how heavy the caregiving load feels this week."],
-                )
-            )
-
-        return matches
-
-    @staticmethod
-    def _missing(value: object) -> bool:
-        return value is None or value == "not_sure"
+    def _ensure_sources_available(self) -> None:
+        if self.sources is None or self.ingestion is None:
+            return
+        if self.sources.list_chunks():
+            return
+        # The bundled manifest contains small trusted excerpts, so this is safe for local demos.
+        self.ingestion.ingest_entries(load_manifest(), dry_run=False)
 
     @staticmethod
     def _recommendation_from_match(resource: Resource, match: RuleMatchResult) -> SupportRecommendation:
@@ -168,7 +157,8 @@ class RecommendationService:
             matchStatus=match.matchStatus,
             matchedFactors=match.matchedFactors,
             missingInformation=match.missingInformation,
-            whyThisMayFit=match.matchedFactors or ["CareBridge needs more intake information before matching this support pathway."],
+            whyThisMayFit=match.matchedFactors
+            or ["CareBridge needs more intake information before matching this support pathway."],
             documentsToPrepare=details.get("documentsToPrepare", []),
             nextSteps=details.get("steps", [])[:1],
             sources=[],
@@ -179,15 +169,18 @@ class RecommendationService:
     def _build_action_plan(recommendations: list[SupportRecommendation]) -> list[ActionPlanItem]:
         items = []
         for index, recommendation in enumerate(recommendations, start=1):
+            checklist = [
+                *recommendation.documentsToPrepare[:2],
+                "Write down questions before calling.",
+            ]
+            if recommendation.sources:
+                checklist.append("Review the source links before making calls.")
             items.append(
                 ActionPlanItem(
                     priority=index,
                     title=recommendation.nextSteps[0] if recommendation.nextSteps else f"Review {recommendation.title}",
                     timeframe="today" if index == 1 else "this_week",
-                    checklist=[
-                        *recommendation.documentsToPrepare[:2],
-                        "Write down questions before calling.",
-                    ],
+                    checklist=checklist,
                 )
             )
         return items

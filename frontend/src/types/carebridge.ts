@@ -1,4 +1,7 @@
-export type MatchStatus = "likely_match" | "possible_match" | "more_info_needed";
+export type MatchStatus =
+  | "likely_match"
+  | "possible_match"
+  | "more_info_needed";
 
 export type IntakeProfile = {
   caregiverName?: string;
@@ -34,8 +37,18 @@ export type CreateSessionRequest = {
 export type UpdateIntakeRequest = IntakeProfile;
 
 export type GenerateRecommendationsRequest = {
-  includeRagEvidence?: false;
+  includeRagEvidence?: boolean;
+  useLlmExplanation?: boolean;
   regenerate?: boolean;
+};
+
+export type SourceCitation = {
+  sourceId: string;
+  title: string;
+  sourceType: string;
+  url?: string | null;
+  page?: number | null;
+  excerpt?: string | null;
 };
 
 export type SupportRecommendation = {
@@ -46,11 +59,13 @@ export type SupportRecommendation = {
   matchedFactors: string[];
   missingInformation: string[];
   whyThisMayFit?: string[];
+  evidenceSummary?: string[];
   documentsToPrepare: string[];
   nextSteps: string[];
+  questionsToAsk?: string[];
   sourcePlaceholder?: string;
-  sources?: unknown[];
-  evidenceStatus?: "insufficient";
+  sources?: SourceCitation[];
+  evidenceStatus?: "insufficient" | "grounded";
 };
 
 export type ActionPlanItem = {
@@ -84,6 +99,38 @@ export type RecommendationRun = {
   disclaimer: string;
 };
 
+export type RagSearchRequest = {
+  query: string;
+  resourceId?: string;
+  category?: string;
+  state?: string;
+  county?: string;
+  topK?: number;
+};
+
+export type RagSearchResult = {
+  chunkId: string;
+  sourceId: string;
+  sourceTitle: string;
+  publisher?: string | null;
+  url?: string | null;
+  authorityLevel: string;
+  resourceId?: string | null;
+  category: string;
+  state?: string | null;
+  county?: string | null;
+  sectionTitle?: string | null;
+  page?: number | null;
+  score: number;
+  text: string;
+};
+
+export type RagSearchResponse = {
+  query: string;
+  filters: Record<string, unknown>;
+  results: RagSearchResult[];
+};
+
 export type RehabTaskMetrics = {
   sit?: {
     reps: number;
@@ -99,4 +146,23 @@ export type RehabTaskMetrics = {
     swayMagnitude: number;
     durationSec: number;
   };
+};
+
+export type RehabSnapshotReportRequest = {
+  cms?: {
+    CMS: number;
+    severity: string;
+    breakdown?: {
+      arm?: number;
+      sit?: number;
+      balance?: number;
+    };
+  };
+  raw?: RehabTaskMetrics;
+};
+
+export type RehabSnapshotReport = {
+  caregiverSummary: string;
+  clinicalFlags: string[];
+  nextSteps: string[];
 };

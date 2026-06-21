@@ -83,3 +83,20 @@ export type RecommendationRun = {
   questionsToAsk: QuestionGroups;
   disclaimer: string;
 };
+
+export type RehabTaskMetrics = {
+  sit?: {
+    reps: number;
+    avgTimeSec: number | null;
+  };
+  arm?: {
+    peakLeft: number;
+    peakRight: number;
+    asymmetryDeg: number;
+    weakSide: "left" | "right";
+  };
+  balance?: {
+    swayMagnitude: number;
+    durationSec: number;
+  };
+};

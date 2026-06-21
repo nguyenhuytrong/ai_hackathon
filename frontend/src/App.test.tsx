@@ -193,6 +193,22 @@ describe("CareBridge Phase 1 product flow", () => {
     expect(await screen.findByText(/Backend unavailable/i)).toBeInTheDocument();
   });
 
+  it("runs the merged TypeScript rehab snapshot flow without a second frontend backend", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    renderApp("/rehab-snapshot");
+
+    expect(screen.getByRole("heading", { name: /Assess Mobility in Under 3 Minutes/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Start Assessment/i }));
+    expect(screen.getByRole("heading", { name: /Guided Mobility Assessment/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Use demo assessment/i }));
+
+    expect(await screen.findByRole("heading", { name: /Mobility Snapshot Report/i })).toBeInTheDocument();
+    expect(screen.getByText(/Clinical Movement Score/i)).toBeInTheDocument();
+    expect(screen.getByText(/CareBridge priority signal/i)).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("renders the action plan from backend recommendation output", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(() => apiResponse(recommendationRun));
     window.localStorage.setItem(

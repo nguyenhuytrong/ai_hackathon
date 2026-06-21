@@ -38,6 +38,7 @@ export default function RehabSnapshotReportPage({ report, onRestart }) {
   useEffect(() => {
     async function fetchReport() {
       try {
+        console.log("BACKEND =", BACKEND);
         const res = await fetch(`${BACKEND}/generate-report`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

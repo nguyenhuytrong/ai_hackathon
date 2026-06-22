@@ -1,7 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import "./rehab-snapshot-report-page.css";
 import { computeCMS, getSources } from "../engine/cmsEngine";
 import { generateRehabSnapshotReport } from "../api/client";
+import { useCareBridge } from "@/state/carebridge-context";
+
+// Fixed title used to find/replace this item in the Plan list, so running
+// the assessment again updates the same entry instead of duplicating it.
+const REHAB_PLAN_TITLE = "Review Rehab Snapshot Results with Care Team";
 
 function DifficultyBadge({ level }) {
   const map = {
@@ -14,12 +20,18 @@ function DifficultyBadge({ level }) {
   return <span className={`badge ${cls}`}>{label}</span>;
 }
 
-function MetricRow({ icon, label, value }) {
+// Each row now shows the raw measurement (value) AND a plain-language
+// explanation (note) of what it actually means, so a caregiver doesn't
+// have to guess what "Δ1°" or "Sway 2.4" is supposed to tell them.
+function MetricRow({ icon, label, value, note }) {
   return (
     <div className="metric-row">
-      <span className="metric-icon">{icon}</span>
-      <span className="metric-label">{label}</span>
-      <span className="metric-value">{value}</span>
+      <div className="metric-row-top">
+        <span className="metric-icon">{icon}</span>
+        <span className="metric-label">{label}</span>
+        <span className="metric-value">{value}</span>
+      </div>
+      {note && <p className="metric-note">{note}</p>}
     </div>
   );
 }
@@ -28,6 +40,9 @@ export default function RehabSnapshotReportPage({ report, onRestart }) {
   const [aiData,  setAiData]  = useState(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
+
+  const navigate = useNavigate();
+  const { upsertRehabActionPlanItem } = useCareBridge();
 
   const { sit, arm, balance } = report;
 
@@ -39,6 +54,9 @@ export default function RehabSnapshotReportPage({ report, onRestart }) {
   const priorityUpgrade =
     cmsResult?.severity === "moderate impairment" ||
     cmsResult?.severity === "severe impairment";
+
+  const hasPartialTask =
+    sit?.completed === false || arm?.completed === false || balance?.completed === false;
 
   useEffect(() => {
     async function fetchReport() {
@@ -61,18 +79,44 @@ export default function RehabSnapshotReportPage({ report, onRestart }) {
 
   const sources = getSources();
 
+  const handleUpdateToPlan = () => {
+    if (!cmsResult) return;
+
+    const priority = priorityUpgrade ? 1 : 2;
+    const timeframe = priorityUpgrade ? "today" : "this_week";
+    const checklist = [
+      "Share the CareBridge Movement Signal score with the care team.",
+      "Discuss the mobility concerns flagged during the Rehab Snapshot.",
+      ...(aiData?.nextSteps?.length ? [aiData.nextSteps[0]] : []),
+    ];
+
+    upsertRehabActionPlanItem({
+      priority,
+      timeframe,
+      title: REHAB_PLAN_TITLE,
+      checklist,
+    });
+
+    navigate("/plan");
+  };
+
   return (
     <div className="report-page">
-      {/* HEADER */}
-      <header className="report-header">
-        <div className="logo">
-          <span className="logo-mark">CB</span>
-          <span className="logo-text">CareBridge</span>
-        </div>
-        <span className="module-tag">Assessment Complete</span>
-      </header>
-
       <main className="report-main">
+
+        {/* TOP ROW — status tag + primary actions (single source of truth,
+            the app-level header above already shows the CareBridge logo) */}
+        <div className="report-top-row">
+          <span className="module-tag">Assessment Complete</span>
+          <div className="report-top-actions">
+            <button className="btn btn-outline" onClick={onRestart}>
+              ← Back
+            </button>
+            <button className="btn btn-primary" onClick={handleUpdateToPlan} disabled={!cmsResult}>
+              Update to Plan
+            </button>
+          </div>
+        </div>
 
         {/* PRIORITY BANNER */}
         <div className={`priority-banner ${priorityUpgrade ? "upgraded" : "stable"}`}>
@@ -116,18 +160,49 @@ export default function RehabSnapshotReportPage({ report, onRestart }) {
           {/* Assessment Results */}
           <section className="report-section">
             <h2>Assessment Results</h2>
+
+            {hasPartialTask && (
+              <p className="metrics-partial-note">
+                One or more tasks ended automatically after the 1-minute time limit before
+                finishing — the figures below reflect partial progress, not a finished attempt.
+              </p>
+            )}
+
             <div className="metrics-list">
               <MetricRow
-                icon="🪑" label="Sit-to-Stand"
-                value={sit ? `${sit.reps}/3 · ${sit.avgTimeSec}s` : "—"}
+                icon="🪑"
+                label="Sit-to-Stand"
+                value={sit ? `${sit.reps}/3 reps · ${sit.avgTimeSec ?? "—"}s avg` : "—"}
+                note={
+                  sit &&
+                  `Completed ${sit.reps} of 3 chair stands${
+                    sit.avgTimeSec ? `, averaging ${sit.avgTimeSec} seconds per rep` : ""
+                  }. Faster, more even pacing generally points to an easier sit-to-stand transfer.${
+                    sit.completed === false ? " (Stopped early — 1-minute limit reached.)" : ""
+                  }`
+                }
               />
               <MetricRow
-                icon="💪" label="Arm Raise"
+                icon="💪"
+                label="Arm Raise"
                 value={arm ? `L ${arm.peakLeft}° · R ${arm.peakRight}° · Δ${arm.asymmetryDeg}°` : "—"}
+                note={
+                  arm &&
+                  `Left arm reached ${arm.peakLeft}° and right arm reached ${arm.peakRight}° (a full overhead reach is close to 180°). A ${arm.asymmetryDeg}° gap was seen between the two sides — larger gaps may point to one side being harder to lift.${
+                    arm.completed === false ? " (Stopped early — 1-minute limit reached.)" : ""
+                  }`
+                }
               />
               <MetricRow
-                icon="🧍" label="Standing Balance"
-                value={balance ? `Sway ${(balance.swayMagnitude * 1000).toFixed(1)} units` : "—"}
+                icon="🧍"
+                label="Standing Balance"
+                value={balance ? `Sway ${(balance.swayMagnitude * 1000).toFixed(1)} · held ${balance.durationSec}s` : "—"}
+                note={
+                  balance &&
+                  `While holding still for ${balance.durationSec}s, side-to-side body sway measured ${(balance.swayMagnitude * 1000).toFixed(1)} on the CareBridge scale — lower numbers mean steadier balance.${
+                    balance.completed === false ? " (Stopped early — 1-minute limit reached.)" : ""
+                  }`
+                }
               />
             </div>
           </section>

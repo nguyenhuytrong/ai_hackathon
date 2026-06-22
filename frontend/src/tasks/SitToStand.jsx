@@ -1,9 +1,9 @@
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import { calcAngle, isVisible } from "../utils/poseUtils";
 
 const TARGET_REPS = 3;
 
-export default function SitToStand({ landmarks, onComplete, running }) {
+const SitToStand = forwardRef(function SitToStand({ landmarks, onComplete, running }, ref) {
   const stateRef = useRef("unknown"); // sit | stand | unknown
   const repsRef = useRef(0);
   const timesRef = useRef([]);
@@ -101,6 +101,25 @@ export default function SitToStand({ landmarks, onComplete, running }) {
   }, [landmarks, running, phase]);
 
   // ---------------------------
+  // PARTIAL-RESULT SNAPSHOT
+  // Called by CameraView if the 1-minute window runs out before
+  // TARGET_REPS is reached, so the timeout result still reflects progress.
+  // ---------------------------
+  useImperativeHandle(ref, () => ({
+    getSnapshot: () => {
+      const avgTime =
+        timesRef.current.length > 0
+          ? timesRef.current.reduce((a, b) => a + b, 0) / timesRef.current.length
+          : null;
+
+      return {
+        reps: repsRef.current,
+        avgTimeSec: avgTime ? Number(avgTime.toFixed(1)) : null,
+      };
+    },
+  }));
+
+  // ---------------------------
   // UI
   // ---------------------------
   return (
@@ -122,4 +141,6 @@ export default function SitToStand({ landmarks, onComplete, running }) {
       </div>
     </div>
   );
-}
+});
+
+export default SitToStand;

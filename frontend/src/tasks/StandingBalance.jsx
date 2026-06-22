@@ -1,13 +1,12 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { isVisible, midpoint, stdDev } from "../utils/poseUtils";
 
 const HOLD_SECONDS = 10;
 
-export default function StandingBalance({
-  landmarks,
-  onComplete,
-  running,
-}) {
+const StandingBalance = forwardRef(function StandingBalance(
+  { landmarks, onComplete, running },
+  ref
+) {
   const hipXHistory = useRef([]);
   const hipYHistory = useRef([]);
   const frameCount = useRef(0);
@@ -80,6 +79,20 @@ export default function StandingBalance({
   const pct = elapsed / HOLD_SECONDS;
 
   // ---------------------------
+  // PARTIAL-RESULT SNAPSHOT
+  // Called by CameraView if the 1-minute window runs out before the
+  // hold is completed, so the timeout result still reflects progress.
+  // ---------------------------
+  useImperativeHandle(ref, () => ({
+    getSnapshot: () => ({
+      swayMagnitude: Number(
+        (hipXHistory.current.length > 0 ? stdDev(hipXHistory.current) : 0).toFixed(4)
+      ),
+      durationSec: Number(Math.min(frameCount.current / 30, HOLD_SECONDS).toFixed(1)),
+    }),
+  }));
+
+  // ---------------------------
   // UI
   // ---------------------------
   return (
@@ -126,4 +139,6 @@ export default function StandingBalance({
       <p className="task-cue">{status}</p>
     </div>
   );
-}
+});
+
+export default StandingBalance;

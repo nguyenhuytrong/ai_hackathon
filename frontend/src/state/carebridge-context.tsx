@@ -1,6 +1,11 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { createDemoSession, createSession, generateRecommendations, updateIntakeProfile } from "@/api/client";
-import type { IntakeProfile, RecommendationRun, Session } from "@/types/carebridge";
+import type {
+  IntakeProfile,
+  RecommendationActionPlanItem,
+  RecommendationRun,
+  Session,
+} from "@/types/carebridge";
 
 const STORAGE_KEY = "carebridge.session";
 
@@ -20,6 +25,7 @@ type CareBridgeContextValue = {
   loadDemoProfile: () => Promise<void>;
   saveIntakeProfile: (profile: IntakeProfile) => Promise<void>;
   loadRecommendations: () => Promise<void>;
+  upsertRehabActionPlanItem: (item: RecommendationActionPlanItem) => void;
   clearProfile: () => void;
 };
 
@@ -120,6 +126,31 @@ export function CareBridgeProvider({ children }: { children: ReactNode }) {
     setRecommendationError(null);
   }
 
+  // Inserts (or replaces) a single action-plan item — used by modules like
+  // Rehab Snapshot that need to push a result into the Plan page outside of
+  // the normal recommendation-generation flow. Items are matched by title,
+  // then the whole list is re-sorted by priority so Plan always reflects the
+  // correct order (lowest priority number = shown first).
+  const upsertRehabActionPlanItem = useCallback((item: RecommendationActionPlanItem) => {
+    setRecommendationRun((prev) => {
+      const base: RecommendationRun =
+        prev ?? {
+          runId: `local-${Date.now()}`,
+          summary: "",
+          recommendations: [],
+          actionPlan: [],
+          questionsToAsk: { doctor: [], therapist: [], socialWorker: [], insuranceProvider: [] },
+          disclaimer: "",
+        };
+
+      const otherItems = base.actionPlan.filter((existing) => existing.title !== item.title);
+      const merged = [...otherItems, item].sort((a, b) => a.priority - b.priority);
+      const renumbered = merged.map((entry, index) => ({ ...entry, priority: index + 1 }));
+
+      return { ...base, actionPlan: renumbered };
+    });
+  }, []);
+
   const value = useMemo<CareBridgeContextValue>(
     () => ({
       sessionId,
@@ -132,6 +163,7 @@ export function CareBridgeProvider({ children }: { children: ReactNode }) {
       loadDemoProfile,
       saveIntakeProfile,
       loadRecommendations,
+      upsertRehabActionPlanItem,
       clearProfile: () => {
         setSessionId(null);
         setProfile(null);
@@ -151,6 +183,7 @@ export function CareBridgeProvider({ children }: { children: ReactNode }) {
       recommendationRun,
       saveIntakeProfile,
       sessionId,
+      upsertRehabActionPlanItem,
     ],
   );
 

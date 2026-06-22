@@ -12,10 +12,10 @@
   border: 1px solid hsl(var(--border));
   border-radius: 12px;
   box-shadow: 0 1px 4px rgba(0,0,0,.06);
-  padding: 20px;
+  padding: 24px;
   display: grid;
-  grid-template-columns: 1fr 260px;
-  gap: 20px;
+  grid-template-columns: 1fr 280px;
+  gap: 24px;
   align-items: start;
 }
 @media (max-width: 900px) {
@@ -48,7 +48,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: hsl(var(--muted-foreground));
   background: none;
@@ -70,10 +70,10 @@
   background: white;
   border: 1px solid hsl(var(--border));
   border-radius: 10px;
-  padding: 14px 16px;
+  padding: 16px 18px;
 }
 .rsassess-info-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .7px;
@@ -81,15 +81,15 @@
   margin: 0 0 10px;
 }
 .rsassess-list {
-  padding-left: 16px;
+  padding-left: 18px;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
   list-style: decimal;
 }
 .rsassess-list li {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.55;
   color: hsl(var(--muted-foreground));
 }
@@ -104,7 +104,7 @@
   border-left: 3px solid #f59e0b;
   border-radius: 10px;
   padding: 12px 14px;
-  font-size: 13px;
+  font-size: 14px;
   color: #78350f;
   line-height: 1.55;
 }
@@ -116,7 +116,7 @@
   border-left: 3px solid hsl(var(--primary));
   border-radius: 10px;
   padding: 12px 14px;
-  font-size: 12px;
+  font-size: 13px;
   color: hsl(var(--primary));
   line-height: 1.6;
 }

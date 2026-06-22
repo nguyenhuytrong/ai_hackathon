@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/", label: "Home", icon: Home },
-  { to: "/rehab-snapshot", label: "Rehab Snapshot", icon: Camera },
   { to: "/intake", label: "Intake", icon: ClipboardList },
   { to: "/benefits", label: "Benefits", icon: WalletCards },
   { to: "/plan", label: "Plan", icon: ListChecks },
+  { to: "/rehab-snapshot", label: "Rehab Snapshot", icon: Camera },
   { to: "/profile", label: "Profile", icon: UserRound },
 ];
 

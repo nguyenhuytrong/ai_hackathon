@@ -1,9 +1,9 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { calcAngle, isVisible } from "../utils/poseUtils";
 
 const HOLD_SECONDS = 5;
 
-export default function ArmRaise({ landmarks, onComplete, running }) {
+const ArmRaise = forwardRef(function ArmRaise({ landmarks, onComplete, running }, ref) {
   const holdRef = useRef(0);
   const frameRef = useRef(0);
   const peakRef = useRef({ left: 0, right: 0 });
@@ -121,6 +121,23 @@ export default function ArmRaise({ landmarks, onComplete, running }) {
   }, [landmarks, running, phase]);
 
   // -------------------------------
+  // PARTIAL-RESULT SNAPSHOT
+  // Called by CameraView if the 1-minute window runs out before
+  // the hold is completed, so the timeout result still reflects progress.
+  // -------------------------------
+  useImperativeHandle(ref, () => ({
+    getSnapshot: () => {
+      const diff = Math.abs(peakRef.current.left - peakRef.current.right);
+      return {
+        peakLeft: peakRef.current.left,
+        peakRight: peakRef.current.right,
+        asymmetryDeg: Number(diff.toFixed(1)),
+        weakSide: peakRef.current.left < peakRef.current.right ? "left" : "right",
+      };
+    },
+  }));
+
+  // -------------------------------
   // UI
   // -------------------------------
   return (
@@ -173,4 +190,6 @@ export default function ArmRaise({ landmarks, onComplete, running }) {
       <p className="task-cue">{status}</p>
     </div>
   );
-}
+});
+
+export default ArmRaise;

@@ -65,7 +65,21 @@ export default function RehabSnapshotReportPage({ report, onRestart }) {
         setError(null);
         const data = await generateRehabSnapshotReport({
           cms: cmsResult,
-          raw: report,
+          raw: {
+            sit: sit ? {
+              reps: sit.reps,
+              avgTimeSec: sit.avgTimeSec,
+            } : null,
+            arm: arm ? {
+              peakLeft: arm.peakLeft,
+              peakRight: arm.peakRight,
+              asymmetryDeg: arm.asymmetryDeg,
+            } : null,
+            balance: balance ? {
+              swayMagnitude: balance.swayMagnitude,
+              durationSec: balance.durationSec,
+            } : null,
+          },
         });
         setAiData(data);
       } catch (e) {
